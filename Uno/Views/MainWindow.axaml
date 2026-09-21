@@ -1,0 +1,90 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Uno.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+        x:Class="Uno.Views.MainWindow"
+        x:DataType="vm:MainViewModel"
+        Icon="/Assets/avalonia-logo.ico"
+        Title="Uno">
+
+    <Grid>
+        <!-- PANTALLA DE JUEGO (Oculta por defecto) -->
+        <Grid Name="GameScreen" IsVisible="False">
+            <Image Source="/Assets/background.jpg" Stretch="UniformToFill"/>
+            <Grid RowDefinitions="*, 2*, *">
+                
+                <!-- Área del Oponente (Arriba) -->
+                <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="20" Spacing="-40">
+                    <!-- Representación del dorso de las cartas del oponente -->
+                    <Border Width="80" Height="120" Background="#222" CornerRadius="8" BorderBrush="White" BorderThickness="3"/>
+                    <Border Width="80" Height="120" Background="#222" CornerRadius="8" BorderBrush="White" BorderThickness="3"/>
+                    <Border Width="80" Height="120" Background="#222" CornerRadius="8" BorderBrush="White" BorderThickness="3"/>
+                </StackPanel>
+
+                <!-- Centro de la Mesa  -->
+                <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="40">
+                    
+                    <!-- Mazo para Robar -->
+                    <Button Name="DrawPileButton" Width="120" Height="180" Background="#111" CornerRadius="10" 
+                            BorderBrush="White" BorderThickness="5" Cursor="Hand">
+                        <TextBlock Text="UNO" Foreground="#E50000" FontWeight="Bold" FontSize="28" 
+                                   HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <TextBlock.RenderTransform>
+                                <RotateTransform Angle="-35"/>
+                            </TextBlock.RenderTransform>
+                        </TextBlock>
+                    </Button>
+
+                    <!-- Ultima carta jugada -->
+                    <Border Width="120" Height="180" CornerRadius="10" BoxShadow="5 5 15 0 Black">
+                        <Image Source="/Assets/Cards/blue6.png" Stretch="Fill" />
+                    </Border>
+                    
+                </StackPanel>
+
+                <!-- Mano del Jugador (Abajo) -->
+                <ScrollViewer Grid.Row="2" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" Margin="0,0,0,20">
+                    <StackPanel Name="PlayerHand" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Bottom" Spacing="-50">
+                        
+                        <!-- Cartas de ejemplo -->
+                        <Button Background="Transparent" Padding="0" Cursor="Hand" BorderThickness="0">
+                            <Image Source="/Assets/Cards/green4.png" Width="120" Height="180"/>
+                        </Button>
+                        <Button Background="Transparent" Padding="0" Cursor="Hand" BorderThickness="0">
+                            <Image Source="/Assets/Cards/red1.png" Width="120" Height="180"/>
+                        </Button>
+                        <Button Background="Transparent" Padding="0" Cursor="Hand" BorderThickness="0">
+                            <Image Source="/Assets/Cards/yellow_reverse.png" Width="120" Height="180"/>
+                        </Button>
+                        <Button Background="Transparent" Padding="0" Cursor="Hand" BorderThickness="0">
+                            <Image Source="/Assets/Cards/wild_drawfour.png" Width="120" Height="180"/>
+                        </Button>
+                        
+                    </StackPanel>
+                </ScrollViewer>
+            </Grid>
+        </Grid>
+
+        <!-- PANTALLA DE INICIO -->
+        <Grid Name="StartScreen" IsVisible="True">
+            <Image Source="/Assets/background1.png" Stretch="UniformToFill"/>
+            <Button Content="INICIAR PARTIDA" 
+                    FontSize="28" FontWeight="Black" 
+                    Background="#FFCC00" Foreground="#E50000"
+                    HorizontalAlignment="Center" VerticalAlignment="Bottom" 
+                    Margin="0,0,0,80" Padding="40,15" CornerRadius="25" 
+                    Click="StartGame_Click"
+                    Cursor="Hand"
+                    >
+                <Button.Styles>
+                    <Style Selector="Button:pointerover /template/ ContentPresenter">
+                        <Setter Property="Background" Value="#FFE666"/>
+                    </Style>
+                </Button.Styles>
+            </Button>
+        </Grid>
+    </Grid>
+
+</Window>
