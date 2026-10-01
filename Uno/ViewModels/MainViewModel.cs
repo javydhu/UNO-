@@ -27,6 +27,29 @@ public class MainViewModel : ViewModelBase
         set => SetProperty(ref _isGameStarted, value);
     }
 
+    // Jugador en turno
+    public Player BottomPlayer => Game.CurrentPlayer;
+
+    // Siguiente jugador en la ronda 
+    public Player RightPlayer
+    {
+        get
+        {
+            int nextIdx = (Game.CurrentPlayerIndex + Game.Direction + Game.Players.Count) % Game.Players.Count;
+            return Game.Players[nextIdx];
+        }
+    }
+
+    // El jugador restante 
+    public Player LeftPlayer
+    {
+        get
+        {
+            int leftIdx = (Game.CurrentPlayerIndex - Game.Direction + Game.Players.Count) % Game.Players.Count;
+            return Game.Players[leftIdx];
+        }
+    }
+
     public MainViewModel()
     {
         _game = new UnoGame();
@@ -43,7 +66,7 @@ public class MainViewModel : ViewModelBase
         if (_game.PlayCard(_game.CurrentPlayer, card))
         {
             UpdateStatus();
-            OnPropertyChanged(nameof(Game));
+            NotifyAllPositions();
         }
         else
         {
@@ -57,7 +80,15 @@ public class MainViewModel : ViewModelBase
         _game.CurrentPlayer.Hand.Add(drawnCard);
         _game.NextTurn();
         UpdateStatus();
+        NotifyAllPositions();
+    }
+
+    private void NotifyAllPositions()
+    {
         OnPropertyChanged(nameof(Game));
+        OnPropertyChanged(nameof(BottomPlayer));
+        OnPropertyChanged(nameof(RightPlayer));
+        OnPropertyChanged(nameof(LeftPlayer));
     }
 
     private void UpdateStatus()
