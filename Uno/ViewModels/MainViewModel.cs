@@ -7,6 +7,7 @@ public class MainViewModel : ViewModelBase
 {
     private UnoGame _game;
     private string _statusMessage = string.Empty;
+    private bool _isGameStarted = false;
 
     public UnoGame Game
     {
@@ -20,9 +21,20 @@ public class MainViewModel : ViewModelBase
         set => SetProperty(ref _statusMessage, value);
     }
 
+    public bool IsGameStarted
+    {
+        get => _isGameStarted;
+        set => SetProperty(ref _isGameStarted, value);
+    }
+
     public MainViewModel()
     {
         _game = new UnoGame();
+    }
+
+    public void StartGame()
+    {
+        IsGameStarted = true;
         UpdateStatus();
     }
 
@@ -50,6 +62,6 @@ public class MainViewModel : ViewModelBase
 
     private void UpdateStatus()
     {
-        StatusMessage = $"Turno de: {Game.CurrentPlayer.Name} | Color en mesa: {Game.ActiveColor}";
+        StatusMessage = $"Turno de: {Game.CurrentPlayer.Name} | Color activo: {Game.ActiveColor}";
     }
 }
