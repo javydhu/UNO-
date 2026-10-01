@@ -1,90 +1,139 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:Uno.ViewModels"
-        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
         x:Class="Uno.Views.MainWindow"
         x:DataType="vm:MainViewModel"
-        Icon="/Assets/avalonia-logo.ico"
-        Title="Uno">
+        x:Name="root"
+        Title="Juego UNO - 3 Jugadores"
+        WindowState="Maximized"
+        CanResize="False">
 
-    <Grid>
-        <!-- PANTALLA DE JUEGO (Oculta por defecto) -->
-        <Grid Name="GameScreen" IsVisible="False">
-            <Image Source="/Assets/background.jpg" Stretch="UniformToFill"/>
-            <Grid RowDefinitions="*, 2*, *">
-                
-                <!-- Área del Oponente (Arriba) -->
-                <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="20" Spacing="-40">
-                    <!-- Representación del dorso de las cartas del oponente -->
-                    <Border Width="80" Height="120" Background="#222" CornerRadius="8" BorderBrush="White" BorderThickness="3"/>
-                    <Border Width="80" Height="120" Background="#222" CornerRadius="8" BorderBrush="White" BorderThickness="3"/>
-                    <Border Width="80" Height="120" Background="#222" CornerRadius="8" BorderBrush="White" BorderThickness="3"/>
-                </StackPanel>
+	<Window.Resources>
+		<vm:BitmapAssetValueConverter x:Key="VariableImageConverter"/>
+	</Window.Resources>
 
-                <!-- Centro de la Mesa  -->
-                <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="40">
-                    
-                    <!-- Mazo para Robar -->
-                    <Button Name="DrawPileButton" Width="120" Height="180" Background="#111" CornerRadius="10" 
-                            BorderBrush="White" BorderThickness="5" Cursor="Hand">
-                        <TextBlock Text="UNO" Foreground="#E50000" FontWeight="Bold" FontSize="28" 
-                                   HorizontalAlignment="Center" VerticalAlignment="Center">
-                            <TextBlock.RenderTransform>
-                                <RotateTransform Angle="-35"/>
-                            </TextBlock.RenderTransform>
-                        </TextBlock>
-                    </Button>
+	<Grid>
+		<!-- Menu principal -->
+		<Grid IsVisible="{Binding !IsGameStarted}">
+			<Image Source="avares://Uno/Assets/background1.png" Stretch="UniformToFill" HorizontalAlignment="Center" VerticalAlignment="Center"/>
 
-                    <!-- Ultima carta jugada -->
-                    <Border Width="120" Height="180" CornerRadius="10" BoxShadow="5 5 15 0 Black">
-                        <Image Source="/Assets/Cards/blue6.png" Stretch="Fill" />
-                    </Border>
-                    
-                </StackPanel>
+			<!-- Boton de "jugar" -->
+			<Button Content="¡ JUGAR !"
+			        Command="{Binding StartGame}"
+			        Padding="45,18"
+			        FontSize="30"
+			        FontWeight="Bold"
+			        Background="#E74C3C"
+			        Foreground="White"
+			        CornerRadius="16"
+			        HorizontalAlignment="Center"
+			        VerticalAlignment="Bottom"
+			        Margin="0,0,0,120"
+			        Cursor="Hand"/>
+		</Grid>
 
-                <!-- Mano del Jugador (Abajo) -->
-                <ScrollViewer Grid.Row="2" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" Margin="0,0,0,20">
-                    <StackPanel Name="PlayerHand" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Bottom" Spacing="-50">
-                        
-                        <!-- Cartas de ejemplo -->
-                        <Button Background="Transparent" Padding="0" Cursor="Hand" BorderThickness="0">
-                            <Image Source="/Assets/Cards/green4.png" Width="120" Height="180"/>
-                        </Button>
-                        <Button Background="Transparent" Padding="0" Cursor="Hand" BorderThickness="0">
-                            <Image Source="/Assets/Cards/red1.png" Width="120" Height="180"/>
-                        </Button>
-                        <Button Background="Transparent" Padding="0" Cursor="Hand" BorderThickness="0">
-                            <Image Source="/Assets/Cards/yellow_reverse.png" Width="120" Height="180"/>
-                        </Button>
-                        <Button Background="Transparent" Padding="0" Cursor="Hand" BorderThickness="0">
-                            <Image Source="/Assets/Cards/wild_drawfour.png" Width="120" Height="180"/>
-                        </Button>
-                        
-                    </StackPanel>
-                </ScrollViewer>
-            </Grid>
-        </Grid>
+		<!-- Menu de juego -->
+		<Grid IsVisible="{Binding IsGameStarted}" RowDefinitions="Auto, *">
+			<Image Grid.RowSpan="2" Source="avares://Uno/Assets/background.jpg" Stretch="UniformToFill" HorizontalAlignment="Center" VerticalAlignment="Center"/>
 
-        <!-- PANTALLA DE INICIO -->
-        <Grid Name="StartScreen" IsVisible="True">
-            <Image Source="/Assets/background1.png" Stretch="UniformToFill"/>
-            <Button Content="INICIAR PARTIDA" 
-                    FontSize="28" FontWeight="Black" 
-                    Background="#FFCC00" Foreground="#E50000"
-                    HorizontalAlignment="Center" VerticalAlignment="Bottom" 
-                    Margin="0,0,0,80" Padding="40,15" CornerRadius="25" 
-                    Click="StartGame_Click"
-                    Cursor="Hand"
-                    >
-                <Button.Styles>
-                    <Style Selector="Button:pointerover /template/ ContentPresenter">
-                        <Setter Property="Background" Value="#FFE666"/>
-                    </Style>
-                </Button.Styles>
-            </Button>
-        </Grid>
-    </Grid>
+			<!-- Banner de estado superior -->
+			<Border Grid.Row="0" Background="#CC1E1E1E" Padding="12">
+				<TextBlock Text="{Binding StatusMessage}" Foreground="White" FontSize="22" FontWeight="Bold" HorizontalAlignment="Center"/>
+			</Border>
 
+			<!-- Tablero principal -->
+			<Grid Grid.Row="1" ColumnDefinitions="250, *, 250" RowDefinitions="*, Auto">
+
+				<!-- Mano del jugador izquierdo -->
+				<Border Grid.Column="0" Grid.Row="0" Background="#88000000" Padding="10" Margin="10" CornerRadius="8" VerticalAlignment="Center" RenderTransformOrigin="50%,50%">
+					<Border.RenderTransform>
+						<RotateTransform Angle="90"/>
+					</Border.RenderTransform>
+					<StackPanel>
+						<TextBlock Text="{Binding LeftPlayer.Name, StringFormat='Mano de {0}'}" Foreground="#FFD700" FontWeight="Bold" FontSize="16" HorizontalAlignment="Center" Margin="0,0,0,5"/>
+						<ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" MaxWidth="300">
+							<ItemsControl ItemsSource="{Binding LeftPlayer.Hand}">
+								<ItemsControl.ItemsPanel>
+									<ItemsPanelTemplate>
+										<StackPanel Orientation="Horizontal" Spacing="8"/>
+									</ItemsPanelTemplate>
+								</ItemsControl.ItemsPanel>
+								<ItemsControl.ItemTemplate>
+									<DataTemplate>
+										<Image Source="{Binding ImagePath, Converter={StaticResource VariableImageConverter}}" Width="65" Height="100"/>
+									</DataTemplate>
+								</ItemsControl.ItemTemplate>
+							</ItemsControl>
+						</ScrollViewer>
+					</StackPanel>
+				</Border>
+
+				<!-- Mazo de comida y del juego -->
+				<StackPanel Grid.Column="1" Grid.Row="0" Orientation="Horizontal" Spacing="40" HorizontalAlignment="Center" VerticalAlignment="Center">
+					<!-- Mazo -->
+					<StackPanel HorizontalAlignment="Center">
+						<TextBlock Text="Mazo" Foreground="White" FontSize="18" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,8"/>
+						<Button Command="{Binding DrawCard}" Background="Transparent" Padding="0" BorderThickness="0" Cursor="Hand">
+							<Border CornerRadius="10" ClipToBounds="True" Background="#C0392B" Width="100" Height="150" BorderBrush="White" BorderThickness="2">
+								<TextBlock Text="UNO" Foreground="White" FontSize="24" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+							</Border>
+						</Button>
+					</StackPanel>
+
+					<!-- Carta en mesa -->
+					<StackPanel HorizontalAlignment="Center">
+						<TextBlock Text="Carta en Mesa" Foreground="White" FontSize="18" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,8"/>
+						<Image Source="{Binding Game.TopCard.ImagePath, Converter={StaticResource VariableImageConverter}}" Width="100" Height="150"/>
+					</StackPanel>
+				</StackPanel>
+
+				<!-- Mano del jugador derecho (GIRADA -90°) -->
+				<Border Grid.Column="2" Grid.Row="0" Background="#88000000" Padding="10" Margin="10" CornerRadius="8" VerticalAlignment="Center" RenderTransformOrigin="50%,50%">
+					<Border.RenderTransform>
+						<RotateTransform Angle="-90"/>
+					</Border.RenderTransform>
+					<StackPanel>
+						<TextBlock Text="{Binding RightPlayer.Name, StringFormat='Mano de {0}'}" Foreground="#FFD700" FontWeight="Bold" FontSize="16" HorizontalAlignment="Center" Margin="0,0,0,5"/>
+						<ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" MaxWidth="300">
+							<ItemsControl ItemsSource="{Binding RightPlayer.Hand}">
+								<ItemsControl.ItemsPanel>
+									<ItemsPanelTemplate>
+										<StackPanel Orientation="Horizontal" Spacing="8"/>
+									</ItemsPanelTemplate>
+								</ItemsControl.ItemsPanel>
+								<ItemsControl.ItemTemplate>
+									<DataTemplate>
+										<Image Source="{Binding ImagePath, Converter={StaticResource VariableImageConverter}}" Width="65" Height="100"/>
+									</DataTemplate>
+								</ItemsControl.ItemTemplate>
+							</ItemsControl>
+						</ScrollViewer>
+					</StackPanel>
+				</Border>
+
+				<!-- Mano del jugador actual -->
+				<Border Grid.Column="0" Grid.ColumnSpan="3" Grid.Row="1" Background="#DD111111" Padding="15" Margin="0,10,0,0">
+					<StackPanel HorizontalAlignment="Center">
+						<TextBlock Text="{Binding BottomPlayer.Name, StringFormat='TU TURNO: {0}'}" Foreground="#3498DB" FontWeight="Bold" FontSize="20" HorizontalAlignment="Center" Margin="0,0,0,8"/>
+						<ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+							<ItemsControl ItemsSource="{Binding BottomPlayer.Hand}">
+								<ItemsControl.ItemsPanel>
+									<ItemsPanelTemplate>
+										<StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center"/>
+									</ItemsPanelTemplate>
+								</ItemsControl.ItemsPanel>
+								<ItemsControl.ItemTemplate>
+									<DataTemplate>
+										<Button Command="{Binding #root.DataContext.PlayCard}" CommandParameter="{Binding}" Background="Transparent" Padding="0" BorderThickness="0" Cursor="Hand">
+											<Image Source="{Binding ImagePath, Converter={StaticResource VariableImageConverter}}" Width="95" Height="140"/>
+										</Button>
+									</DataTemplate>
+								</ItemsControl.ItemTemplate>
+							</ItemsControl>
+						</ScrollViewer>
+					</StackPanel>
+				</Border>
+			</Grid>
+		</Grid>
+	</Grid>
 </Window>
