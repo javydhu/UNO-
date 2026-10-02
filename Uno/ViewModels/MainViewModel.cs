@@ -1,6 +1,6 @@
-using System.Collections.ObjectModel;
-using Uno.Models;
 using System;
+using System.Linq;
+using Uno.Models;
 
 namespace Uno.ViewModels;
 
@@ -9,7 +9,12 @@ public class MainViewModel : ViewModelBase
     private UnoGame _game;
     private string _statusMessage = string.Empty;
     private bool _isGameStarted = false;
-    private bool _hasPlayedCardThisTurn = false;
+    private bool _isColorPickerVisible = false;
+    private bool _isGameOver = false;
+    private string _winnerName = string.Empty;
+    private string _gameOverDetails = string.Empty;
+    private Card? _pendingWildCard = null;
+
     public Card TopCard => Game.TopCard;
 
     public UnoGame Game
@@ -29,6 +34,32 @@ public class MainViewModel : ViewModelBase
         get => _isGameStarted;
         set => SetProperty(ref _isGameStarted, value);
     }
+
+    public bool IsColorPickerVisible
+    {
+        get => _isColorPickerVisible;
+        set => SetProperty(ref _isColorPickerVisible, value);
+    }
+
+    public bool IsGameOver
+    {
+        get => _isGameOver;
+        set => SetProperty(ref _isGameOver, value);
+    }
+
+    public string WinnerName
+    {
+        get => _winnerName;
+        set => SetProperty(ref _winnerName, value);
+    }
+
+    public string GameOverDetails
+    {
+        get => _gameOverDetails;
+        set => SetProperty(ref _gameOverDetails, value);
+    }
+
+    public bool HasPendingDraws => Game.PendingDrawCards > 0;
 
     public Player BottomPlayer => Game.CurrentPlayer;
 
@@ -57,9 +88,17 @@ public class MainViewModel : ViewModelBase
 
     public void StartGame()
     {
+        _game = new UnoGame();
         IsGameStarted = true;
-        _hasPlayedCardThisTurn = false;
-        
+        IsGameOver = false;
+
+        AssignCardActions();
+        UpdateStatus();
+        NotifyAllPositions();
+    }
+
+    private void AssignCardActions()
+    {
         foreach (var player in Game.Players)
         {
             foreach (var card in player.Hand)
@@ -67,69 +106,128 @@ public class MainViewModel : ViewModelBase
                 card.PlayAction = PlayCard;
             }
         }
-        
-        UpdateStatus();
     }
-    
+
     public void PlayCard(Card card)
     {
-        Console.WriteLine($"[DEBUG] Clic detectado en la carta: {card.Color} {card.Value}");
-        // 1. Evitar que tire más de una carta
-        if (_hasPlayedCardThisTurn)
+        if (IsGameOver) return;
+
+        if (card.Color == CardColor.Wild)
         {
-            StatusMessage = "Ya jugaste una carta. Presiona ENTER para pasar el turno.";
+            _pendingWildCard = card;
+            IsColorPickerVisible = true;
             return;
         }
 
-        // 2. Intentar jugar la carta
-        if (_game.PlayCard(_game.CurrentPlayer, card))
+        ExecutePlayCard(card, null);
+    }
+
+    public void SelectColor(string colorName)
+    {
+        if (_pendingWildCard != null && Enum.TryParse<CardColor>(colorName, out var chosenColor))
         {
-            _hasPlayedCardThisTurn = true; // Se bloquea la mano
-            StatusMessage = $"Carta en mesa. Presiona ENTER para finalizar tu turno. | Color: {_game.ActiveColor}";
-            NotifyAllPositions(); // Actualizar la vista (mostrar la nueva TopCard)
+            IsColorPickerVisible = false;
+            ExecutePlayCard(_pendingWildCard, chosenColor);
+            _pendingWildCard = null;
+        }
+    }
+
+    private void ExecutePlayCard(Card card, CardColor? chosenColor)
+    {
+        Player currentPlayer = _game.CurrentPlayer;
+
+        if (_game.PlayCard(currentPlayer, card, chosenColor))
+        {
+            if (currentPlayer.Hand.Count == 0)
+            {
+                EndGameWithWinner(currentPlayer.Name, "¡Se ha quedado sin cartas!");
+                return;
+            }
+
+            AssignCardActions();
+            UpdateStatus();
+            NotifyAllPositions();
         }
         else
         {
-            StatusMessage = $"Movimiento inválido. Elige una carta del mismo color, número o un comodín.";
+            StatusMessage = Game.PendingDrawCards > 0
+                ? $"¡Hay un +{Game.PendingDrawCards} acumulado! Responde con +2/+4 o toma el castigo."
+                : "Movimiento inválido. Elige una carta del mismo color, número o comodín.";
         }
     }
 
     public void DrawCard()
     {
-        if (_hasPlayedCardThisTurn)
+        if (IsGameOver || Game.DrawPile.Count == 0) return;
+
+        Card? drawnCard = _game.DrawCardFromPile();
+        if (drawnCard != null)
         {
-            StatusMessage = "Ya jugaste una carta, no puedes robar. Presiona ENTER.";
+            drawnCard.PlayAction = PlayCard;
+            _game.CurrentPlayer.Hand.Add(drawnCard);
+            StatusMessage = $"{_game.CurrentPlayer.Name} ha robado una carta.";
+        }
+
+        NotifyAllPositions();
+    }
+
+    public void TakePenalty()
+    {
+        if (Game.PendingDrawCards > 0)
+        {
+            Player victim = Game.CurrentPlayer;
+            int count = Game.PendingDrawCards;
+            Game.ResolvePendingDraws(victim);
+
+            AssignCardActions();
+            StatusMessage = $"{victim.Name} no pudo responder y robó {count} cartas.";
+            NotifyAllPositions();
+        }
+    }
+
+    public void PassTurn()
+    {
+        if (IsGameOver) return;
+
+        Game.ConsecutivePasses++;
+
+        // Si los 3 jugadores pasan consecutivamente, se acaba el juego por puntos
+        if (Game.ConsecutivePasses >= Game.Players.Count)
+        {
+            CalculateEndGameByPoints();
             return;
         }
 
-        Card drawnCard = _game.DrawCardFromPile();
-
-        drawnCard.PlayAction = PlayCard; 
-        
-        _game.CurrentPlayer.Hand.Add(drawnCard);
-        
+        Game.NextTurn();
+        AssignCardActions();
         UpdateStatus();
         NotifyAllPositions();
     }
-    
-    public void EndTurn()
-    {
-        if (!IsGameStarted) return;
 
-        // Validar que haya puesto una carta antes de pasar
-        if (!_hasPlayedCardThisTurn)
+    private void CalculateEndGameByPoints()
+    {
+        var scores = Game.Players.Select(p => new { Player = p, Score = Game.CalculatePlayerPoints(p) })
+                                 .OrderBy(x => x.Score)
+                                 .ToList();
+
+        var winner = scores.First();
+        WinnerName = winner.Player.Name;
+
+        string details = "PUNTUACIÓN FINAL:\n";
+        foreach (var s in scores)
         {
-            StatusMessage = "¡Debes jugar una carta antes de presionar ENTER!";
-            return;
+            details += $"{s.Player.Name}: {s.Score} pts\n";
         }
 
-        // Avanzar el turno en la lógica del juego
-        _game.NextTurn();
-        
-        // Resetear la variable para el nuevo jugador
-        _hasPlayedCardThisTurn = false;
-        
-        UpdateStatus();
+        EndGameWithWinner(WinnerName, details);
+    }
+
+    private void EndGameWithWinner(string name, string details)
+    {
+        WinnerName = name;
+        GameOverDetails = details;
+        IsGameOver = true;
+        StatusMessage = $"¡JUEGO FINALIZADO! Ganador: {WinnerName}";
         NotifyAllPositions();
     }
 
@@ -140,13 +238,18 @@ public class MainViewModel : ViewModelBase
         OnPropertyChanged(nameof(RightPlayer));
         OnPropertyChanged(nameof(LeftPlayer));
         OnPropertyChanged(nameof(TopCard));
+        OnPropertyChanged(nameof(HasPendingDraws));
     }
 
     private void UpdateStatus()
     {
-        if (!_hasPlayedCardThisTurn)
+        if (Game.PendingDrawCards > 0)
         {
-            StatusMessage = $"Turno de: {Game.CurrentPlayer.Name} | Color activo: {Game.ActiveColor}";
+            StatusMessage = $"¡ATENCIÓN {Game.CurrentPlayer.Name}! Hay +{Game.PendingDrawCards} acumulados. ¡Responde con +2/+4 o toma el castigo!";
+        }
+        else
+        {
+            StatusMessage = $"Turno de: {Game.CurrentPlayer.Name} | Color activo: {Game.ActiveColor} | Mazo: {Game.DrawPile.Count} cartas";
         }
     }
 }
