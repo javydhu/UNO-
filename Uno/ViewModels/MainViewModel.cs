@@ -59,7 +59,20 @@ public class MainViewModel : ViewModelBase
         set => SetProperty(ref _gameOverDetails, value);
     }
 
+    // Propiedades calculadas para la interfaz
+    public int PendingDrawCards => Game.PendingDrawCards;
     public bool HasPendingDraws => Game.PendingDrawCards > 0;
+    public bool CanPassTurn => Game.DrawPile.Count == 0 && !HasPendingDraws;
+
+    // Color hexadecimal para el indicador de color activo
+    public string ActiveColorHex => Game.ActiveColor switch
+    {
+        CardColor.Red => "#E74C3C",
+        CardColor.Yellow => "#F1C40F",
+        CardColor.Blue => "#3498DB",
+        CardColor.Green => "#2ECC71",
+        _ => "#888888"
+    };
 
     public Player BottomPlayer => Game.CurrentPlayer;
 
@@ -161,7 +174,7 @@ public class MainViewModel : ViewModelBase
 
     public void DrawCard()
     {
-        if (IsGameOver || Game.DrawPile.Count == 0) return;
+        if (IsGameOver || Game.DrawPile.Count == 0 || HasPendingDraws) return;
 
         Card? drawnCard = _game.DrawCardFromPile();
         if (drawnCard != null)
@@ -190,11 +203,10 @@ public class MainViewModel : ViewModelBase
 
     public void PassTurn()
     {
-        if (IsGameOver) return;
+        if (IsGameOver || !CanPassTurn) return;
 
         Game.ConsecutivePasses++;
 
-        // Si los 3 jugadores pasan consecutivamente, se acaba el juego por puntos
         if (Game.ConsecutivePasses >= Game.Players.Count)
         {
             CalculateEndGameByPoints();
@@ -241,7 +253,10 @@ public class MainViewModel : ViewModelBase
         OnPropertyChanged(nameof(RightPlayer));
         OnPropertyChanged(nameof(LeftPlayer));
         OnPropertyChanged(nameof(TopCard));
+        OnPropertyChanged(nameof(PendingDrawCards));
         OnPropertyChanged(nameof(HasPendingDraws));
+        OnPropertyChanged(nameof(CanPassTurn));
+        OnPropertyChanged(nameof(ActiveColorHex));
     }
 
     private void UpdateStatus()

@@ -67,8 +67,15 @@
 					</StackPanel>
 				</Border>
 
-				<!-- Zona Central: Mazo, Pozo y Botones de Acción -->
-				<StackPanel Grid.Column="1" Grid.Row="0" Spacing="20" HorizontalAlignment="Center" VerticalAlignment="Center">
+				<!-- Zona Central: Mazo, Pozo e Indicador de Color Activo -->
+				<StackPanel Grid.Column="1" Grid.Row="0" Spacing="15" HorizontalAlignment="Center" VerticalAlignment="Center">
+
+					<!-- Indicador de Color Activo -->
+					<StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center" VerticalAlignment="Center">
+						<TextBlock Text="COLOR ACTIVO:" Foreground="White" FontSize="16" FontWeight="Bold" VerticalAlignment="Center"/>
+						<Border Background="{Binding ActiveColorHex}" Width="30" Height="30" CornerRadius="15" BorderBrush="White" BorderThickness="2"/>
+					</StackPanel>
+
 					<StackPanel Orientation="Horizontal" Spacing="40" HorizontalAlignment="Center">
 						<!-- Mazo -->
 						<StackPanel HorizontalAlignment="Center">
@@ -91,6 +98,7 @@
 					<StackPanel Orientation="Horizontal" Spacing="15" HorizontalAlignment="Center">
 						<Button Content="Pasar Turno"
 						        Command="{Binding PassTurn}"
+						        IsVisible="{Binding CanPassTurn}"
 						        Padding="20,10"
 						        Background="#7F8C8D"
 						        Foreground="White"
@@ -98,7 +106,7 @@
 						        CornerRadius="8"
 						        Cursor="Hand"/>
 
-						<Button Content="{Binding Game.PendingDrawCards, StringFormat='Tomar +{0} y Perder Turno'}"
+						<Button Content="{Binding PendingDrawCards, StringFormat='Tomar +{0} y Perder Turno'}"
 						        Command="{Binding TakePenalty}"
 						        IsVisible="{Binding HasPendingDraws}"
 						        Padding="20,10"
@@ -159,41 +167,54 @@
 			</Grid>
 		</Grid>
 
-		<!-- Modal de comodines -->
-		<Grid IsVisible="{Binding IsColorPickerVisible}" Background="#AA000000">
-			<Border Background="#2D2D30" CornerRadius="16" Padding="25" HorizontalAlignment="Center" VerticalAlignment="Center" BorderBrush="White" BorderThickness="2">
+		<!-- Modal de selección de colores -->
+		<Grid IsVisible="{Binding IsColorPickerVisible}"
+		      Background="#AA000000"
+		      IsHitTestVisible="True"
+		      HorizontalAlignment="Stretch"
+		      VerticalAlignment="Stretch">
+
+			<Border Background="#2D2D30"
+			        CornerRadius="16"
+			        Padding="30"
+			        HorizontalAlignment="Center"
+			        VerticalAlignment="Center"
+			        BorderBrush="White"
+			        BorderThickness="2"
+			        IsHitTestVisible="True">
+
 				<StackPanel Spacing="20" HorizontalAlignment="Center">
 					<TextBlock Text="¡ELIGE UN COLOR!" Foreground="White" FontSize="26" FontWeight="Bold" HorizontalAlignment="Center"/>
 
-					<UniformGrid Columns="2" Rows="2" Width="260" Height="260" HorizontalAlignment="Center" VerticalAlignment="Center">
+					<WrapPanel Width="280" Height="280" HorizontalAlignment="Center" VerticalAlignment="Center">
 						<Button Command="{Binding SelectColor}" CommandParameter="Red"
-						        Width="110" Height="110" Margin="10"
+						        Width="120" Height="120" Margin="10"
 						        Background="#E74C3C" Foreground="White"
 						        FontSize="18" FontWeight="Bold"
 						        Content="ROJO" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-						        CornerRadius="12" Cursor="Hand"/>
+						        CornerRadius="12" Cursor="Hand" IsHitTestVisible="True"/>
 
 						<Button Command="{Binding SelectColor}" CommandParameter="Yellow"
-						        Width="110" Height="110" Margin="10"
+						        Width="120" Height="120" Margin="10"
 						        Background="#F1C40F" Foreground="Black"
 						        FontSize="18" FontWeight="Bold"
 						        Content="AMARILLO" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-						        CornerRadius="12" Cursor="Hand"/>
+						        CornerRadius="12" Cursor="Hand" IsHitTestVisible="True"/>
 
 						<Button Command="{Binding SelectColor}" CommandParameter="Blue"
-						        Width="110" Height="110" Margin="10"
+						        Width="120" Height="120" Margin="10"
 						        Background="#3498DB" Foreground="White"
 						        FontSize="18" FontWeight="Bold"
 						        Content="AZUL" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-						        CornerRadius="12" Cursor="Hand"/>
+						        CornerRadius="12" Cursor="Hand" IsHitTestVisible="True"/>
 
 						<Button Command="{Binding SelectColor}" CommandParameter="Green"
-						        Width="110" Height="110" Margin="10"
+						        Width="120" Height="120" Margin="10"
 						        Background="#2ECC71" Foreground="White"
 						        FontSize="18" FontWeight="Bold"
 						        Content="VERDE" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-						        CornerRadius="12" Cursor="Hand"/>
-					</UniformGrid>
+						        CornerRadius="12" Cursor="Hand" IsHitTestVisible="True"/>
+					</WrapPanel>
 				</StackPanel>
 			</Border>
 		</Grid>
