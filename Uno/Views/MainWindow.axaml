@@ -161,14 +161,38 @@
 
 		<!-- Modal de comodines -->
 		<Grid IsVisible="{Binding IsColorPickerVisible}" Background="#AA000000">
-			<Border Background="#2D2D30" CornerRadius="16" Padding="30" HorizontalAlignment="Center" VerticalAlignment="Center" BorderBrush="White" BorderThickness="2">
-				<StackPanel Spacing="20">
+			<Border Background="#2D2D30" CornerRadius="16" Padding="25" HorizontalAlignment="Center" VerticalAlignment="Center" BorderBrush="White" BorderThickness="2">
+				<StackPanel Spacing="20" HorizontalAlignment="Center">
 					<TextBlock Text="¡ELIGE UN COLOR!" Foreground="White" FontSize="26" FontWeight="Bold" HorizontalAlignment="Center"/>
-					<UniformGrid Columns="2" Rows="2" Width="240" Height="240">
-						<Button Command="{Binding SelectColor}" CommandParameter="Red" Background="#E74C3C" Margin="8" CornerRadius="12" Cursor="Hand"/>
-						<Button Command="{Binding SelectColor}" CommandParameter="Yellow" Background="#F1C40F" Margin="8" CornerRadius="12" Cursor="Hand"/>
-						<Button Command="{Binding SelectColor}" CommandParameter="Blue" Background="#3498DB" Margin="8" CornerRadius="12" Cursor="Hand"/>
-						<Button Command="{Binding SelectColor}" CommandParameter="Green" Background="#2ECC71" Margin="8" CornerRadius="12" Cursor="Hand"/>
+
+					<UniformGrid Columns="2" Rows="2" Width="260" Height="260" HorizontalAlignment="Center" VerticalAlignment="Center">
+						<Button Command="{Binding SelectColor}" CommandParameter="Red"
+						        Width="110" Height="110" Margin="10"
+						        Background="#E74C3C" Foreground="White"
+						        FontSize="18" FontWeight="Bold"
+						        Content="ROJO" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+						        CornerRadius="12" Cursor="Hand"/>
+
+						<Button Command="{Binding SelectColor}" CommandParameter="Yellow"
+						        Width="110" Height="110" Margin="10"
+						        Background="#F1C40F" Foreground="Black"
+						        FontSize="18" FontWeight="Bold"
+						        Content="AMARILLO" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+						        CornerRadius="12" Cursor="Hand"/>
+
+						<Button Command="{Binding SelectColor}" CommandParameter="Blue"
+						        Width="110" Height="110" Margin="10"
+						        Background="#3498DB" Foreground="White"
+						        FontSize="18" FontWeight="Bold"
+						        Content="AZUL" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+						        CornerRadius="12" Cursor="Hand"/>
+
+						<Button Command="{Binding SelectColor}" CommandParameter="Green"
+						        Width="110" Height="110" Margin="10"
+						        Background="#2ECC71" Foreground="White"
+						        FontSize="18" FontWeight="Bold"
+						        Content="VERDE" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+						        CornerRadius="12" Cursor="Hand"/>
 					</UniformGrid>
 				</StackPanel>
 			</Border>

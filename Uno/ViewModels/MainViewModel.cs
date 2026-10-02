@@ -122,13 +122,16 @@ public class MainViewModel : ViewModelBase
         ExecutePlayCard(card, null);
     }
 
-    public void SelectColor(string colorName)
+    public void SelectColor(object? parameter)
     {
-        if (_pendingWildCard != null && Enum.TryParse<CardColor>(colorName, out var chosenColor))
+        if (parameter is string colorName && _pendingWildCard != null)
         {
-            IsColorPickerVisible = false;
-            ExecutePlayCard(_pendingWildCard, chosenColor);
-            _pendingWildCard = null;
+            if (Enum.TryParse<CardColor>(colorName, out var chosenColor))
+            {
+                IsColorPickerVisible = false;
+                ExecutePlayCard(_pendingWildCard, chosenColor);
+                _pendingWildCard = null;
+            }
         }
     }
 
