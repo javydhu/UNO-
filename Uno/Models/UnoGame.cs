@@ -38,18 +38,17 @@ public class UnoGame
         {
             if (color == CardColor.Wild) continue;
 
-            DrawPile.Add(new Card(color, CardValue.Zero));
-
-            for (int i = 0; i < 2; i++)
+            // Iteramos una sola vez por cada valor (0 al 9, Skip, Reverse, DrawTwo)
+            foreach (CardValue val in Enum.GetValues(typeof(CardValue)))
             {
-                foreach (CardValue val in Enum.GetValues(typeof(CardValue)))
-                {
-                    if (val == CardValue.Zero || val == CardValue.Wild || val == CardValue.WildDrawFour) continue;
-                    DrawPile.Add(new Card(color, val));
-                }
+                if (val == CardValue.Wild || val == CardValue.WildDrawFour) continue;
+            
+                // Esto asegura que solo haya UN "1 azul", UN "Reversa rojo", etc.
+                DrawPile.Add(new Card(color, val));
             }
         }
 
+        // 4 de cada comodín
         for (int i = 0; i < 4; i++)
         {
             DrawPile.Add(new Card(CardColor.Wild, CardValue.Wild));
@@ -103,33 +102,40 @@ public class UnoGame
 
     public bool PlayCard(Player player, Card card, CardColor? chosenColor = null)
     {
+        // Verificar si es el jugador actual y si la carta es válida
         if (player != CurrentPlayer || !card.CanPlayOn(TopCard, ActiveColor))
             return false;
 
+        // Mover carta de la mano a la pila de descarte
         player.Hand.Remove(card);
         DiscardPile.Add(card);
 
+        // Actualizar el color activo (por ahora los comodines serán Rojos por defecto)
         ActiveColor = card.Color == CardColor.Wild ? (chosenColor ?? CardColor.Red) : card.Color;
+
+        // Determinar a quién le afectan las cartas de acción ANTES de cambiar el turno
+        int nextPlayerIdx = (CurrentPlayerIndex + Direction + Players.Count) % Players.Count;
+        Player targetPlayer = Players[nextPlayerIdx];
 
         switch (card.Value)
         {
             case CardValue.Skip:
-                NextTurn();
+                NextTurn(); // Avanza 1 vez (el ENTER avanzará la 2da vez, saltándolo)
                 break;
             case CardValue.Reverse:
                 Direction *= -1;
                 break;
             case CardValue.DrawTwo:
-                NextTurn();
-                DrawCards(CurrentPlayer, 2);
+                DrawCards(targetPlayer, 2);
+                NextTurn(); // El jugador objetivo roba y pierde su turno
                 break;
             case CardValue.WildDrawFour:
-                NextTurn();
-                DrawCards(CurrentPlayer, 4);
+                DrawCards(targetPlayer, 4);
+                NextTurn(); // El jugador objetivo roba y pierde su turno
                 break;
         }
 
-        NextTurn();
+        // El turno se quedará pausado hasta que el usuario presione ENTER.
         return true;
     }
 

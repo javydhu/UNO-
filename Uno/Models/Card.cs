@@ -1,33 +1,17 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Uno.Models;
 
-public enum CardColor
-{
-    Red,
-    Yellow,
-    Green,
-    Blue,
-    Wild
-}
-
-public enum CardValue
-{
-    Zero, One, Two, Three, Four, Five, Six, Seven, Eight, Nine,
-    Skip, Reverse, DrawTwo, Wild, WildDrawFour
-}
+public enum CardColor { Red, Yellow, Green, Blue, Wild }
+public enum CardValue { Zero, One, Two, Three, Four, Five, Six, Seven, Eight, Nine, Skip, Reverse, DrawTwo, Wild, WildDrawFour }
 
 public class Card
 {
     public CardColor Color { get; set; }
     public CardValue Value { get; set; }
 
-    // Propiedad que genera automáticamente la ruta de la imagen según tus archivos en Assets/Cards
     public string ImagePath => GetImagePath();
+    public Action<Card>? PlayAction { get; set; }
 
     public Card(CardColor color, CardValue value)
     {
@@ -41,6 +25,10 @@ public class Card
         if (Color == currentActiveColor) return true;
         if (Value == topCard.Value) return true;
         return false;
+    }
+    public void OnCardClicked()
+    {
+        PlayAction?.Invoke(this);
     }
 
     private string GetImagePath()

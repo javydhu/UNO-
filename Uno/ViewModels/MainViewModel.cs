@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using Uno.Models;
+using System;
 
 namespace Uno.ViewModels;
 
@@ -8,6 +9,8 @@ public class MainViewModel : ViewModelBase
     private UnoGame _game;
     private string _statusMessage = string.Empty;
     private bool _isGameStarted = false;
+    private bool _hasPlayedCardThisTurn = false;
+    public Card TopCard => Game.TopCard;
 
     public UnoGame Game
     {
@@ -27,10 +30,8 @@ public class MainViewModel : ViewModelBase
         set => SetProperty(ref _isGameStarted, value);
     }
 
-    // Jugador en turno
     public Player BottomPlayer => Game.CurrentPlayer;
 
-    // Siguiente jugador en la ronda 
     public Player RightPlayer
     {
         get
@@ -40,7 +41,6 @@ public class MainViewModel : ViewModelBase
         }
     }
 
-    // El jugador restante 
     public Player LeftPlayer
     {
         get
@@ -58,27 +58,77 @@ public class MainViewModel : ViewModelBase
     public void StartGame()
     {
         IsGameStarted = true;
+        _hasPlayedCardThisTurn = false;
+        
+        foreach (var player in Game.Players)
+        {
+            foreach (var card in player.Hand)
+            {
+                card.PlayAction = PlayCard;
+            }
+        }
+        
         UpdateStatus();
     }
-
+    
     public void PlayCard(Card card)
     {
+        Console.WriteLine($"[DEBUG] Clic detectado en la carta: {card.Color} {card.Value}");
+        // 1. Evitar que tire más de una carta
+        if (_hasPlayedCardThisTurn)
+        {
+            StatusMessage = "Ya jugaste una carta. Presiona ENTER para pasar el turno.";
+            return;
+        }
+
+        // 2. Intentar jugar la carta
         if (_game.PlayCard(_game.CurrentPlayer, card))
         {
-            UpdateStatus();
-            NotifyAllPositions();
+            _hasPlayedCardThisTurn = true; // Se bloquea la mano
+            StatusMessage = $"Carta en mesa. Presiona ENTER para finalizar tu turno. | Color: {_game.ActiveColor}";
+            NotifyAllPositions(); // Actualizar la vista (mostrar la nueva TopCard)
         }
         else
         {
-            StatusMessage = $"Movimiento inválido. {Game.CurrentPlayer.Name}, elige una carta válida.";
+            StatusMessage = $"Movimiento inválido. Elige una carta del mismo color, número o un comodín.";
         }
     }
 
     public void DrawCard()
     {
+        if (_hasPlayedCardThisTurn)
+        {
+            StatusMessage = "Ya jugaste una carta, no puedes robar. Presiona ENTER.";
+            return;
+        }
+
         Card drawnCard = _game.DrawCardFromPile();
+
+        drawnCard.PlayAction = PlayCard; 
+        
         _game.CurrentPlayer.Hand.Add(drawnCard);
+        
+        UpdateStatus();
+        NotifyAllPositions();
+    }
+    
+    public void EndTurn()
+    {
+        if (!IsGameStarted) return;
+
+        // Validar que haya puesto una carta antes de pasar
+        if (!_hasPlayedCardThisTurn)
+        {
+            StatusMessage = "¡Debes jugar una carta antes de presionar ENTER!";
+            return;
+        }
+
+        // Avanzar el turno en la lógica del juego
         _game.NextTurn();
+        
+        // Resetear la variable para el nuevo jugador
+        _hasPlayedCardThisTurn = false;
+        
         UpdateStatus();
         NotifyAllPositions();
     }
@@ -89,10 +139,14 @@ public class MainViewModel : ViewModelBase
         OnPropertyChanged(nameof(BottomPlayer));
         OnPropertyChanged(nameof(RightPlayer));
         OnPropertyChanged(nameof(LeftPlayer));
+        OnPropertyChanged(nameof(TopCard));
     }
 
     private void UpdateStatus()
     {
-        StatusMessage = $"Turno de: {Game.CurrentPlayer.Name} | Color activo: {Game.ActiveColor}";
+        if (!_hasPlayedCardThisTurn)
+        {
+            StatusMessage = $"Turno de: {Game.CurrentPlayer.Name} | Color activo: {Game.ActiveColor}";
+        }
     }
 }
