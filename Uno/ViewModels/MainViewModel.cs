@@ -245,9 +245,29 @@ public class MainViewModel : ViewModelBase
         StatusMessage = $"¡JUEGO FINALIZADO! Ganador: {WinnerName}";
         NotifyAllPositions();
     }
+    
+    private void UpdatePlayableCards()
+    {
+        if (Game == null || Game.Players.Count == 0) return;
+
+        foreach (var card in Game.CurrentPlayer.Hand)
+        {
+            if (Game.PendingDrawCards > 0)
+            {
+                // Si hay castigo acumulado, solo puede responder con +2 o +4
+                card.IsPlayable = (card.Value == CardValue.DrawTwo || card.Value == CardValue.WildDrawFour);
+            }
+            else
+            {
+                // De lo contrario, checamos reglas normales (mismo color, número o comodín)
+                card.IsPlayable = card.CanPlayOn(TopCard, Game.ActiveColor);
+            }
+        }
+    }
 
     private void NotifyAllPositions()
     {
+        UpdatePlayableCards();
         OnPropertyChanged(nameof(Game));
         OnPropertyChanged(nameof(BottomPlayer));
         OnPropertyChanged(nameof(RightPlayer));
@@ -267,7 +287,7 @@ public class MainViewModel : ViewModelBase
         }
         else
         {
-            StatusMessage = $"Turno de: {Game.CurrentPlayer.Name} | Color activo: {Game.ActiveColor} | Mazo: {Game.DrawPile.Count} cartas";
+            StatusMessage = $"Turno de: {Game.CurrentPlayer.Name} | Mazo: {Game.DrawPile.Count} cartas";
         }
     }
 }

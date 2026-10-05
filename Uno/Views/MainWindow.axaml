@@ -50,7 +50,10 @@
 					</Border.RenderTransform>
 					<StackPanel>
 						<TextBlock Text="{Binding LeftPlayer.Name, StringFormat='Mano de {0}'}" Foreground="#FFD700" FontWeight="Bold" FontSize="16" HorizontalAlignment="Center" Margin="0,0,0,5"/>
-						<ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" MaxWidth="300">
+						<ScrollViewer HorizontalScrollBarVisibility="Hidden" 
+						              VerticalScrollBarVisibility="Disabled" 
+						              MaxWidth="300"
+						              PointerWheelChanged="OnHandPointerWheelChanged">
 							<ItemsControl ItemsSource="{Binding LeftPlayer.Hand}">
 								<ItemsControl.ItemsPanel>
 									<ItemsPanelTemplate>
@@ -72,14 +75,14 @@
 
 					<!-- Indicador de Color Activo -->
 					<StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center" VerticalAlignment="Center">
-						<TextBlock Text="COLOR ACTIVO:" Foreground="White" FontSize="16" FontWeight="Bold" VerticalAlignment="Center"/>
+						<TextBlock Text="COLOR A JUGARR:" Foreground="White" FontSize="16" FontWeight="Bold" VerticalAlignment="Center"/>
 						<Border Background="{Binding ActiveColorHex}" Width="30" Height="30" CornerRadius="15" BorderBrush="White" BorderThickness="2"/>
 					</StackPanel>
 
 					<StackPanel Orientation="Horizontal" Spacing="40" HorizontalAlignment="Center">
 						<!-- Mazo -->
 						<StackPanel HorizontalAlignment="Center">
-							<TextBlock Text="{Binding Game.DrawPile.Count, StringFormat='Mazo ({0})'}" Foreground="White" FontSize="16" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,8"/>
+							<TextBlock Text=" " Foreground="White" FontSize="16" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,8"/>
 							<Button Command="{Binding DrawCard}" Background="Transparent" Padding="0" BorderThickness="0" Cursor="Hand">
 								<Border CornerRadius="10" ClipToBounds="True" Background="#C0392B" Width="100" Height="150" BorderBrush="White" BorderThickness="2">
 									<TextBlock Text="UNO" Foreground="White" FontSize="24" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
@@ -125,7 +128,10 @@
 					</Border.RenderTransform>
 					<StackPanel>
 						<TextBlock Text="{Binding RightPlayer.Name, StringFormat='Mano de {0}'}" Foreground="#FFD700" FontWeight="Bold" FontSize="16" HorizontalAlignment="Center" Margin="0,0,0,5"/>
-						<ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" MaxWidth="300">
+						<ScrollViewer HorizontalScrollBarVisibility="Hidden" 
+						              VerticalScrollBarVisibility="Disabled" 
+						              MaxWidth="300"
+						              PointerWheelChanged="OnHandPointerWheelChanged">
 							<ItemsControl ItemsSource="{Binding RightPlayer.Hand}">
 								<ItemsControl.ItemsPanel>
 									<ItemsPanelTemplate>
@@ -143,7 +149,7 @@
 				</Border>
 
 				<!-- Mano del jugador en turno (ABAJO) -->
-				<Border Grid.Column="0" Grid.ColumnSpan="3" Grid.Row="1" Background="#DD111111" Padding="15" Margin="0,10,0,0">
+				<Border Grid.Column="0" Grid.ColumnSpan="3" Grid.Row="1" Background="#DD111111" Padding="20, 40" Margin="0,10,0,0">
 					<StackPanel HorizontalAlignment="Center">
 						<TextBlock Text="{Binding BottomPlayer.Name, StringFormat='TU TURNO: {0}'}" Foreground="#3498DB" FontWeight="Bold" FontSize="20" HorizontalAlignment="Center" Margin="0,0,0,8"/>
 						<ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
@@ -155,8 +161,36 @@
 								</ItemsControl.ItemsPanel>
 								<ItemsControl.ItemTemplate>
 									<DataTemplate DataType="models:Card">
-										<Button Command="{Binding OnCardClicked}" Background="Transparent" Padding="0" BorderThickness="0" Cursor="Hand">
-											<Image Source="{Binding ImagePath, Converter={StaticResource VariableImageConverter}}" Width="95" Height="140"/>
+									
+										<Button Command="{Binding OnCardClicked}" 
+										        Background="Transparent"
+										        Margin="0, 15"
+										        Padding="0" 
+										        BorderThickness="0" 
+										        Cursor="Hand"
+										        Classes.playable="{Binding IsPlayable}"
+										        RenderTransformOrigin="50%,50%">
+         
+											<Button.Styles>
+												<!-- Estado normal de todas las cartas -->
+												<Style Selector="Button">
+													<Setter Property="RenderTransform" Value="scale(1.0)"/>
+													<Setter Property="ZIndex" Value="0"/>
+													<Setter Property="Transitions">
+														<Transitions>
+															<TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.15"/>
+														</Transitions>
+													</Setter>
+												</Style>
+            
+												<!-- Estado Hover SÓLO cuando la carta tiene la clase 'playable' -->
+												<Style Selector="Button.playable:pointerover">
+													<Setter Property="RenderTransform" Value="scale(1.1)"/>
+													<Setter Property="ZIndex" Value="1"/> <!-- La pone por encima de las demás cartas -->
+												</Style>
+											</Button.Styles>
+
+											<Image Source="{Binding ImagePath, Converter={StaticResource VariableImageConverter}}" Width="100" Height="140"/>
 										</Button>
 									</DataTemplate>
 								</ItemsControl.ItemTemplate>

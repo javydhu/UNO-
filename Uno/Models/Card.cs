@@ -1,14 +1,23 @@
 ﻿using System;
+using Uno.ViewModels;
 
 namespace Uno.Models;
 
 public enum CardColor { Red, Yellow, Green, Blue, Wild }
 public enum CardValue { Zero, One, Two, Three, Four, Five, Six, Seven, Eight, Nine, Skip, Reverse, DrawTwo, Wild, WildDrawFour }
 
-public class Card
+public class Card : ViewModelBase 
 {
     public CardColor Color { get; set; }
     public CardValue Value { get; set; }
+
+    // Propiedad que indica si la carta es válida para jugarse ahorita
+    private bool _isPlayable;
+    public bool IsPlayable
+    {
+        get => _isPlayable;
+        set => SetProperty(ref _isPlayable, value);
+    }
 
     public string ImagePath => GetImagePath();
     public Action<Card>? PlayAction { get; set; }
@@ -26,6 +35,7 @@ public class Card
         if (Value == topCard.Value) return true;
         return false;
     }
+
     public void OnCardClicked()
     {
         PlayAction?.Invoke(this);
