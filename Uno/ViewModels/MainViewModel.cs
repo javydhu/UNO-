@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using System.Threading.Tasks;
 using Uno.Models;
 
 namespace Uno.ViewModels;
@@ -63,6 +64,27 @@ public class MainViewModel : ViewModelBase
     public int PendingDrawCards => Game.PendingDrawCards;
     public bool HasPendingDraws => Game.PendingDrawCards > 0;
     public bool CanPassTurn => Game.DrawPile.Count == 0 && !HasPendingDraws;
+    private int _messageToken = 0; // Ayuda a cancelar mensajes viejos si suceden rápido
+
+    public bool HasCardsInDeck => Game.DrawPile.Count > 0;
+   
+    public string PenaltyButtonText => Game.DrawPile.Count == 0 
+        ? "Pasar Turno" 
+        : $"Tomar +{PendingDrawCards} y Perder Turno";
+    
+    private async void ShowTemporaryMessage(string message, int durationMs = 5000)
+    {
+        int currentToken = ++_messageToken;
+        StatusMessage = message;
+
+        await Task.Delay(durationMs);
+
+        // Si el token no ha cambiado, significa que no ha habido otro movimiento en el inter
+        if (currentToken == _messageToken)
+        {
+            UpdateStatus(); // Regresamos al texto normal
+        }
+    }
 
     // Color hexadecimal para el indicador de color activo
     public string ActiveColorHex => Game.ActiveColor switch
@@ -166,9 +188,12 @@ public class MainViewModel : ViewModelBase
         }
         else
         {
-            StatusMessage = Game.PendingDrawCards > 0
+            // Usamos el mensaje temporal en lugar de cambiarlo permanentemente
+            string errorMsg = Game.PendingDrawCards > 0
                 ? $"¡Hay un +{Game.PendingDrawCards} acumulado! Responde con +2/+4 o toma el castigo."
                 : "Movimiento inválido. Elige una carta del mismo color, número o comodín.";
+           
+            ShowTemporaryMessage(errorMsg, 5000);
         }
     }
 
@@ -181,7 +206,9 @@ public class MainViewModel : ViewModelBase
         {
             drawnCard.PlayAction = PlayCard;
             _game.CurrentPlayer.Hand.Add(drawnCard);
-            StatusMessage = $"{_game.CurrentPlayer.Name} ha robado una carta.";
+           
+            // Mensaje temporal al robar
+            ShowTemporaryMessage($"{_game.CurrentPlayer.Name} ha robado una carta.", 3000);
         }
 
         NotifyAllPositions();
@@ -196,7 +223,10 @@ public class MainViewModel : ViewModelBase
             Game.ResolvePendingDraws(victim);
 
             AssignCardActions();
-            StatusMessage = $"{victim.Name} no pudo responder y robó {count} cartas.";
+           
+            // Mensaje temporal de castigo
+            ShowTemporaryMessage($"{victim.Name} no pudo responder y robó {count} cartas.", 5000);
+           
             NotifyAllPositions();
         }
     }
@@ -277,10 +307,16 @@ public class MainViewModel : ViewModelBase
         OnPropertyChanged(nameof(HasPendingDraws));
         OnPropertyChanged(nameof(CanPassTurn));
         OnPropertyChanged(nameof(ActiveColorHex));
+       
+        // Agregamos las nuevas notificaciones
+        OnPropertyChanged(nameof(HasCardsInDeck));
+        OnPropertyChanged(nameof(PenaltyButtonText));
     }
 
     private void UpdateStatus()
     {
+        _messageToken++; // Incrementamos el token para cancelar cualquier temporizador de 5 segundos que siga corriendo
+
         if (Game.PendingDrawCards > 0)
         {
             StatusMessage = $"¡ATENCIÓN {Game.CurrentPlayer.Name}! Hay +{Game.PendingDrawCards} acumulados. ¡Responde con +2/+4 o toma el castigo!";

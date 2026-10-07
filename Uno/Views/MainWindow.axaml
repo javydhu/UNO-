@@ -33,7 +33,7 @@
 
 		<!-- Tablero de juego -->
 		<Grid IsVisible="{Binding IsGameStarted}" RowDefinitions="Auto, *">
-			<Image Grid.RowSpan="2" Source="avares://Uno/Assets/background.jpg" Stretch="UniformToFill" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+			<Image Grid.RowSpan="2" Source="avares://Uno/Assets/background.png" Stretch="UniformToFill" HorizontalAlignment="Center" VerticalAlignment="Center"/>
 
 			<!-- Banner de estado superior -->
 			<Border Grid.Row="0" Background="#CC1E1E1E" Padding="12">
@@ -75,7 +75,7 @@
 
 					<!-- Indicador de Color Activo -->
 					<StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center" VerticalAlignment="Center">
-						<TextBlock Text="COLOR A JUGARR:" Foreground="White" FontSize="16" FontWeight="Bold" VerticalAlignment="Center"/>
+						<TextBlock Text="COLOR A JUGAR:" Foreground="White" FontSize="16" FontWeight="Bold" VerticalAlignment="Center"/>
 						<Border Background="{Binding ActiveColorHex}" Width="30" Height="30" CornerRadius="15" BorderBrush="White" BorderThickness="2"/>
 					</StackPanel>
 
@@ -83,10 +83,16 @@
 						<!-- Mazo -->
 						<StackPanel HorizontalAlignment="Center">
 							<TextBlock Text=" " Foreground="White" FontSize="16" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,8"/>
-							<Button Command="{Binding DrawCard}" Background="Transparent" Padding="0" BorderThickness="0" Cursor="Hand">
-								<Border CornerRadius="10" ClipToBounds="True" Background="#C0392B" Width="100" Height="150" BorderBrush="White" BorderThickness="2">
-									<TextBlock Text="UNO" Foreground="White" FontSize="24" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-								</Border>
+							<!-- Agregamos IsVisible y reemplazamos el Border rojo por la Image -->
+							<Button Command="{Binding DrawCard}" 
+							        Background="Transparent" 
+							        Padding="0" 
+							        BorderThickness="0" 
+							        Cursor="Hand"
+							        IsVisible="{Binding HasCardsInDeck}">
+                        
+								<Image Source="avares://Uno/Assets/Cards/uno.png" Width="100" Height="150"/>
+                        
 							</Button>
 						</StackPanel>
 
@@ -109,7 +115,8 @@
 						        CornerRadius="8"
 						        Cursor="Hand"/>
 
-						<Button Content="{Binding PendingDrawCards, StringFormat='Tomar +{0} y Perder Turno'}"
+						<!-- Cambiamos el Content para que lea la propiedad PenaltyButtonText -->
+						<Button Content="{Binding PenaltyButtonText}"
 						        Command="{Binding TakePenalty}"
 						        IsVisible="{Binding HasPendingDraws}"
 						        Padding="20,10"
