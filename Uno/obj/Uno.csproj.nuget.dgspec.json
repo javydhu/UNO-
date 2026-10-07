@@ -1,20 +1,20 @@
 {
   "format": 1,
   "restore": {
-    "/home/javydhu/RiderProjects/Uno/Uno/Uno.csproj": {}
+    "/home/jose-antonio-ruiz-ortiz/Documents/Semestre 5/Interfaces graficas/UNO_7/UNO-/Uno/Uno.csproj": {}
   },
   "projects": {
-    "/home/javydhu/RiderProjects/Uno/Uno/Uno.csproj": {
+    "/home/jose-antonio-ruiz-ortiz/Documents/Semestre 5/Interfaces graficas/UNO_7/UNO-/Uno/Uno.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "/home/javydhu/RiderProjects/Uno/Uno/Uno.csproj",
+        "projectUniqueName": "/home/jose-antonio-ruiz-ortiz/Documents/Semestre 5/Interfaces graficas/UNO_7/UNO-/Uno/Uno.csproj",
         "projectName": "Uno",
-        "projectPath": "/home/javydhu/RiderProjects/Uno/Uno/Uno.csproj",
-        "packagesPath": "/home/javydhu/.nuget/packages/",
-        "outputPath": "/home/javydhu/RiderProjects/Uno/Uno/obj/",
+        "projectPath": "/home/jose-antonio-ruiz-ortiz/Documents/Semestre 5/Interfaces graficas/UNO_7/UNO-/Uno/Uno.csproj",
+        "packagesPath": "/home/jose-antonio-ruiz-ortiz/.nuget/packages/",
+        "outputPath": "/home/jose-antonio-ruiz-ortiz/Documents/Semestre 5/Interfaces graficas/UNO_7/UNO-/Uno/obj/",
         "projectStyle": "PackageReference",
         "configFilePaths": [
-          "/home/javydhu/.nuget/NuGet/NuGet.Config"
+          "/home/jose-antonio-ruiz-ortiz/.nuget/NuGet/NuGet.Config"
         ],
         "originalTargetFrameworks": [
           "net8.0"
@@ -33,13 +33,7 @@
           "warnAsError": [
             "NU1605"
           ]
-        },
-        "restoreAuditProperties": {
-          "enableAudit": "true",
-          "auditLevel": "low",
-          "auditMode": "direct"
-        },
-        "SdkAnalysisLevel": "9.0.300"
+        }
       },
       "frameworks": {
         "net8.0": {
@@ -79,7 +73,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "/home/javydhu/.dotnet/sdk/9.0.317/PortableRuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "/usr/lib/dotnet/sdk/8.0.131/PortableRuntimeIdentifierGraph.json"
         }
       }
     }
