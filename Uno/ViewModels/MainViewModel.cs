@@ -7,6 +7,7 @@ using Uno.Services;
 using System.Collections.Generic;
 namespace Uno.ViewModels;
 
+
 public class MainViewModel : ViewModelBase
 {
     private UnoGame _game;
@@ -228,7 +229,7 @@ public class MainViewModel : ViewModelBase
         }
     }
 
-    public void DrawCard()
+    public async void DrawCard()
     {
         if (IsGameOver || Game.DrawPile.Count == 0 || HasPendingDraws) return;
 
@@ -238,6 +239,7 @@ public class MainViewModel : ViewModelBase
             drawnCard.PlayAction = PlayCard;
             _game.CurrentPlayer.Hand.Add(drawnCard);
            
+            await RegistrarRoboEnServidor(_game.CurrentPlayer);
             // Mensaje temporal al robar
             ShowTemporaryMessage($"{_game.CurrentPlayer.Name} ha robado una carta.", 3000);
         }
@@ -356,5 +358,51 @@ public class MainViewModel : ViewModelBase
         {
             StatusMessage = $"Turno de: {Game.CurrentPlayer.Name} | Mazo: {Game.DrawPile.Count} cartas";
         }
+    }
+    public async Task RegistrarJugadaEnServidor(Player jugador, Card carta, string colorElegido = null)
+    {
+        ApiService api = new ApiService();
+
+        // Armamos el paquete JSON con el ID real del jugador y la carta jugada
+        var datosJugada = new
+        {
+            jugador_id = jugador.Id,
+            color_carta = carta.Color.ToString(),
+            valor_carta = carta.Value.ToString(),
+            color_elegido = colorElegido // Útil si tiró un comodín y eligió un color
+        };
+
+        // Llamamos al endpoint de la API encargado
+        string respuesta = await api.EnviarJugadaLog("/partida/jugar-carta", datosJugada);
+
+        if (respuesta != null)
+        {
+            Console.WriteLine("Acción registrada en el servidor correctamente.");
+        }
+    }
+    
+    public async Task RegistrarRoboEnServidor(Player jugador)
+    {
+        ApiService api = new ApiService();
+
+        var datosRobo = new
+        {
+            jugador_id = jugador.Id
+        };
+
+        string respuesta = await api.EnviarJugadaLog("/partida/robar-carta", datosRobo);
+        
+    }
+    
+    public async Task RegistrarPenalizacionEnServidor(Player jugador)
+    {
+        ApiService api = new ApiService();
+        await api.EnviarJugadaLog("/partida/tomar-penalizacion", new { jugador_id = jugador.Id });
+    }
+
+    public async Task RegistrarPaseDeTurnoEnServidor(Player jugador)
+    {
+        ApiService api = new ApiService();
+        await api.EnviarJugadaLog("/partida/pasar-turno", new { jugador_id = jugador.Id });
     }
 }

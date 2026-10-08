@@ -40,6 +40,8 @@ class MovimientoCreate(BaseModel):
 class JugadorCreate(BaseModel):
     nombre str
 
+class AccionJugadorReques(Basemodel):
+    jugador_id: int
 #Ahora siguen los endpoints
 
 
@@ -92,8 +94,8 @@ def obtener_log_partida(partida_id: int, db: Session = Depends(get_db)):
       .all()
   )
   
- @app.post("/jugadores/login")
-  def resgistrar_jugador(datos: JugadorCreate, db: Session = Depends(get_db));
+@app.post("/jugadores/login")
+def resgistrar_jugador(datos: JugadorCreate, db: Session = Depends(get_db));
     jugador_existente = db.query(Jugador).filter(Jugador.nombre == datos.nombre).first() #Jugador con el mismo nombre
     if jugador_existente
         return jugador_existente
@@ -104,5 +106,35 @@ def obtener_log_partida(partida_id: int, db: Session = Depends(get_db)):
     db.refresh
    
     return nuevo_jugador
+  
+@app.post("/partida/robar-carta")
+def registrar_robo(datos: AccionJugadorRequest, db: Session = Depends(get_db)):
+    #se busca al jugador en la base de datos
+    jugador = db.query(Jugador).filter(Jugador.id == datos.jugador_id).first()
     
+    if not jugador:
+        return {"error": "Jugador no encontrado"}
+    
+    # Registro de cuantas cartas robo
+    print(f"El jugador {jugador.nombre} (ID: {datos.jugador_id}) robó una carta.")
+    
+
+@app.post("/partida/tomar-penalizacion")
+def registrar_penalizacion(datos: AccionJugadorRequest, db: Session = Depends(get_db)):
+    jugador = db.query(Jugador).filter(Jugador.id == datos.jugador_id).first()
+    
+    if not jugador:
+        return {"error": "Jugador no encontrado"}
+
+    print(f"El jugador {jugador.nombre} se comio las cartas de castigo.")
+    
+
+@app.post("/partida/pasar-turno")
+def registrar_pase_turno(datos: AccionJugadorRequest, db: Session = Depends(get_db)):
+    jugador = db.query(Jugador).filter(Jugador.id == datos.jugador_id).first()
+    
+    if not jugador:
+        return {"error": "Jugador no encontrado"}
+
+    print(f"El jugador {jugador.nombre} pasó su turno.")
     

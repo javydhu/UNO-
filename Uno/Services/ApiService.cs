@@ -6,6 +6,7 @@ using System.Net.Http;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Uno.Models;
 
 //El servicio de la API es basicamente para poder centralizar las llamadas que se le hacen y para no tener que hacer
 //todo el protocolo de llamadas cada que se quiere hacer una peticion por ejemplo de post, solo se le llama a esta 
