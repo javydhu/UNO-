@@ -9,7 +9,7 @@ class Jugador(Base):
 #atributos de la case jugador, los cuales con el ID que se ponen con los atributos necesarios
   id = Column(Integer, primary_key=True, index=True, autoincrement=True)
   nombre = Column(String(100), nullable=False)
-
+  partidas_ganadas Column(Integer, default = 0, nullable = False)
 
 class LogMovimiento(Base):
   __tablename__ = "log_movimientos"
