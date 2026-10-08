@@ -10,12 +10,14 @@ namespace Uno.Models;
 public class Player
 {
     public string Name { get; set; }
-    public string Id { get; set; }
+    public int Id { get; set; }
 
     public ObservableCollection<Card> Hand { get; set; } = new();
 
-    public Player(string name)
+  
+    public Player(int id, string name)
     {
         Name = name;
+        Id = id;
     } 
 }

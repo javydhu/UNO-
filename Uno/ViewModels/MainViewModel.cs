@@ -1,8 +1,10 @@
 using System;
 using System.Linq;
+using System.Text.Json;
 using System.Threading.Tasks;
 using Uno.Models;
-
+using Uno.Services;
+using System.Collections.Generic;
 namespace Uno.ViewModels;
 
 public class MainViewModel : ViewModelBase
@@ -15,6 +17,13 @@ public class MainViewModel : ViewModelBase
     private string _winnerName = string.Empty;
     private string _gameOverDetails = string.Empty;
     private Card? _pendingWildCard = null;
+    
+    public class JugadorRespuesta
+    {
+        public string Nombre { get; set; }
+        public int Id { get; set; }
+        public int PartidasGanadas  { get; set; }
+    }
 
     public Card TopCard => Game.TopCard;
 
@@ -121,9 +130,31 @@ public class MainViewModel : ViewModelBase
         _game = new UnoGame();
     }
 
-    public void StartGame()
+    public async Task StartGame()
     {
-        _game = new UnoGame();
+        ApiService api = new ApiService();
+        List<Player> listaJugadores = new List<Player>();
+        List<string> jugadores = new List<string>();
+        jugadores.Add("Jugador_1");
+        jugadores.Add("Jugador_2");
+        jugadores.Add("Jugador_3");
+        
+        foreach (var player in listaJugadores)
+        {
+            string respuesta = await api.EnviarJugadaLog("/jugadores/login", new { nombre = player });
+            if (respuesta != null)
+            {
+                var jugadorServidor = JsonSerializer.Deserialize<JugadorRespuesta>(respuesta,  
+                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                if (jugadorServidor != null)
+                {
+                    listaJugadores.Add(new Player(jugadorServidor.Id, jugadorServidor.Nombre));
+                }
+            }
+
+        }
+        
+        _game = new UnoGame(listaJugadores);
         IsGameStarted = true;
         IsGameOver = false;
 
