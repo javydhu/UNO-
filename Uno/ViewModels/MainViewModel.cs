@@ -140,7 +140,7 @@ public class MainViewModel : ViewModelBase
         jugadores.Add("Jugador_2");
         jugadores.Add("Jugador_3");
         
-        foreach (var player in listaJugadores)
+        foreach (var player in jugadores)
         {
             string respuesta = await api.EnviarJugadaLog("/jugadores/login", new { nombre = player });
             if (respuesta != null)
@@ -175,7 +175,7 @@ public class MainViewModel : ViewModelBase
         }
     }
 
-    public void PlayCard(Card card)
+    public async void PlayCard(Card card)
     {
         if (IsGameOver) return;
 
@@ -185,7 +185,7 @@ public class MainViewModel : ViewModelBase
             IsColorPickerVisible = true;
             return;
         }
-
+        await RegistrarJugadaEnServidor(_game.CurrentPlayer, card , (card.Color).ToString());
         ExecutePlayCard(card, null);
     }
 
@@ -247,16 +247,17 @@ public class MainViewModel : ViewModelBase
         NotifyAllPositions();
     }
 
-    public void TakePenalty()
+    public async void TakePenalty()
     {
         if (Game.PendingDrawCards > 0)
         {
             Player victim = Game.CurrentPlayer;
             int count = Game.PendingDrawCards;
             Game.ResolvePendingDraws(victim);
-
+            
             AssignCardActions();
-           
+            await RegistrarPenalizacionEnServidor(_game.CurrentPlayer);
+
             // Mensaje temporal de castigo
             ShowTemporaryMessage($"{victim.Name} no pudo responder y robó {count} cartas.", 5000);
            
@@ -264,7 +265,7 @@ public class MainViewModel : ViewModelBase
         }
     }
 
-    public void PassTurn()
+    public async void PassTurn()
     {
         if (IsGameOver || !CanPassTurn) return;
 
@@ -275,6 +276,7 @@ public class MainViewModel : ViewModelBase
             CalculateEndGameByPoints();
             return;
         }
+        await RegistrarPaseDeTurnoEnServidor(_game.CurrentPlayer);
 
         Game.NextTurn();
         AssignCardActions();
