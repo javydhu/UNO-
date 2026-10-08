@@ -36,6 +36,9 @@ class MovimientoCreate(BaseModel):
   partida_id: int
   jugador_id: int
   accion: str
+  
+class JugadorCreate(BaseModel):
+    nombre str
 
 #Ahora siguen los endpoints
 
@@ -88,3 +91,18 @@ def obtener_log_partida(partida_id: int, db: Session = Depends(get_db)):
       .filter(models.LogMovimiento.partida_id == partida_id)
       .all()
   )
+  
+ @app.post("/jugadores/login")
+  def resgistrar_jugador(datos: JugadorCreate, db: Session = Depends(get_db));
+    jugador_existente = db.query(Jugador).filter(Jugador.nombre == datos.nombre).first() #Jugador con el mismo nombre
+    if jugador_existente
+        return jugador_existente
+    
+    nuevo_jugador = Jugador(nombre = datos.nombre, partidas_ganadas = 0)
+    db.add(nuevo_jugador)
+    db.commit()
+    db.refresh
+   
+    return nuevo_jugador
+    
+    

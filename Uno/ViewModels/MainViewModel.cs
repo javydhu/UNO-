@@ -2,10 +2,6 @@ using System;
 using System.Linq;
 using System.Threading.Tasks;
 using Uno.Models;
-using System.Net.Http;
-using System.Text;
-using System.Text.Json;
-using System.Threading.Tasks;
 
 namespace Uno.ViewModels;
 
