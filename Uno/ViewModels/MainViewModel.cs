@@ -20,6 +20,7 @@ public class MainViewModel : ViewModelBase
     private Card? _pendingWildCard = null;
     private int partidaId = 0;
     private bool _hasShoutedUno = false;
+    private bool _isPauseMenuVisible = false;
 
     // El botón de UNO aparece solo si el jugador tiene 2 cartas, al menos una es jugable y aún no lo ha presionado
     public bool CanShoutUno => Game.CurrentPlayer.Hand.Count == 2 
@@ -206,6 +207,31 @@ public class MainViewModel : ViewModelBase
                 _pendingWildCard = null;
             }
         }
+    }
+    public bool IsPauseMenuVisible
+    {
+        get => _isPauseMenuVisible;
+        set => SetProperty(ref _isPauseMenuVisible, value);
+    }
+    public void TogglePauseMenu()
+    {
+        IsPauseMenuVisible = !IsPauseMenuVisible;
+    }
+
+    // Reinicia la partida actual (cierra el menú y llama a StartGame)
+    public async Task RestartGame()
+    {
+        IsPauseMenuVisible = false;
+        await StartGame();
+    }
+
+    // Abandona la partida y vuelve a la pantalla inicial
+    public void QuitToMainMenu()
+    {
+        IsPauseMenuVisible = false;
+        IsGameStarted = false;
+        IsGameOver = false;
+        // Podrías llamar a un endpoint de la API para avisar que se abandonó la partida
     }
 
     private async void ExecutePlayCard(Card card, CardColor? chosenColor)
