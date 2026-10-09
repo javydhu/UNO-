@@ -16,7 +16,7 @@ using Uno.Models;
 public class ApiService
 {
     //Se declara la base de la url con la que se va a conectar con la base de datos
-    private readonly string _baseURL = "https://127.0.0.1:8000";
+    private readonly string _baseURL = "http://127.0.0.1:8000";
 
     //Funcion que envia las jugadas o movimientos, tambien podria enviar en un futuro a los jugadores
     public async Task<string> EnviarJugadaLog(string endpoint, object data)
@@ -31,7 +31,7 @@ public class ApiService
             HttpContent content = new StringContent(jsonMessage, Encoding.UTF8, "application/json");
 
             string url = _baseURL + endpoint;
-            HttpResponseMessage response = await client.PostAsync(_baseURL, content);
+            HttpResponseMessage response = await client.PostAsync(url, content);
             response.EnsureSuccessStatusCode();
 
             string respuestaServidor = await response.Content.ReadAsStringAsync();
