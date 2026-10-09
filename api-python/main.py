@@ -20,6 +20,9 @@ from pydantic import BaseModel
 #ocupar durante la peticion
 from sqlalchemy.orm import Session
 
+#Esta libreria nos ayuda a hacer funciones en la tabla
+from sqlalchemy import func
+
 #Que se creen en la base de datos en caso de que no esten
 models.Base.metadata.create_all(bind=engine)
 
@@ -36,6 +39,18 @@ class MovimientoCreate(BaseModel):
   partida_id: int
   jugador_id: int
   accion: str
+  
+
+class AccionJugadorRequest(BaseModel):
+    jugador_id: int
+    partida_id: int
+
+class JugadaRequest(BaseModel):
+    jugador_id: int
+    partida_id: int
+    color_carta: str
+    valor_carta: str
+    color_elegido: str | None = None
 
 #Ahora siguen los endpoints
 
@@ -88,3 +103,132 @@ def obtener_log_partida(partida_id: int, db: Session = Depends(get_db)):
       .filter(models.LogMovimiento.partida_id == partida_id)
       .all()
   )
+  
+@app.post("/jugadores/login")
+def resgistrar_jugador(datos: JugadorCreate, db: Session = Depends(get_db)):
+    jugador_existente = db.query(models.Jugador).filter(models.Jugador.nombre == datos.nombre).first()
+    if jugador_existente:
+        # Retornamos un diccionario plano en lugar del objeto SQLAlchemy
+        return {
+            "id": jugador_existente.id,
+            "nombre": jugador_existente.nombre,
+            "partidas_ganadas": jugador_existente.partidas_ganadas
+        }
+    
+    nuevo_jugador = models.Jugador(nombre=datos.nombre, partidas_ganadas=0)
+    db.add(nuevo_jugador)
+    db.commit()
+    db.refresh(nuevo_jugador)
+   
+    return {
+        "id": nuevo_jugador.id,
+        "nombre": nuevo_jugador.nombre,
+        "partidas_ganadas": nuevo_jugador.partidas_ganadas
+    }
+  
+@app.post("/partida/robar-carta")
+def registrar_robo(datos: AccionJugadorRequest, db: Session = Depends(get_db)):
+    jugador = db.query(models.Jugador).filter(models.Jugador.id == datos.jugador_id).first()
+    if not jugador:
+        return {"error": "Jugador no encontrado"}
+    
+    # 1. Creamos y guardamos el registro en la base de datos
+    db_mov = models.LogMovimiento(
+        partida_id=datos.partida_id,  
+        jugador_id=datos.jugador_id,
+        accion=f"El jugador {jugador.nombre} robó una carta."
+    )
+    db.add(db_mov)
+    db.commit()
+
+    return {"mensaje": "Robo registrado con éxito"}
+    
+
+@app.post("/partida/tomar-penalizacion")
+def registrar_penalizacion(datos: AccionJugadorRequest, db: Session = Depends(get_db)):
+    jugador = db.query(models.Jugador).filter(models.Jugador.id == datos.jugador_id).first()
+    if not jugador:
+        return {"error": "Jugador no encontrado"}
+
+    # Guardamos la penalización en el log
+    db_mov = models.LogMovimiento(
+        partida_id=datos.partida_id,
+        jugador_id=datos.jugador_id,
+        accion=f"El jugador {jugador.nombre} tomó penalización."
+    )
+    db.add(db_mov)
+    db.commit()
+
+    return {"mensaje": "Penalización registrada con éxito"}
+    
+
+@app.post("/partida/pasar-turno")
+def registrar_pase_turno(datos: AccionJugadorRequest, db: Session = Depends(get_db)):
+    jugador = db.query(models.Jugador).filter(models.Jugador.id == datos.jugador_id).first()
+    if not jugador:
+        return {"error": "Jugador no encontrado"}
+
+    # Guardamos el pase de turno en el log
+    db_mov = models.LogMovimiento(
+        partida_id=datos.partida_id,
+        jugador_id=datos.jugador_id,
+        accion=f"El jugador {jugador.nombre} pasó su turno."
+    )
+    db.add(db_mov)
+    db.commit()
+
+    return {"mensaje": "Turno pasado con éxito"}
+
+@app.post("/partida/jugar-carta")
+def registrar_jugada(datos: JugadaRequest, db: Session = Depends(get_db)):
+    jugador = db.query(models.Jugador).filter(models.Jugador.id == datos.jugador_id).first()
+    if not jugador:
+        return {"error": "Jugador no encontrado"}
+
+    if datos.color_elegido is not None:
+       accion_texto = f"El jugador {jugador.nombre} jugó comodin {datos.valor_carta} y cambio el color a {datos.color_elegido}"
+    else:
+        accion_texto = f"El jugador {jugador.nombre} jugó {datos.color_carta} {datos.valor_carta}."
+
+    db_mov = models.LogMovimiento(
+        partida_id=datos.partida_id,  
+        jugador_id=datos.jugador_id,
+        accion=accion_texto
+    )
+    db.add(db_mov)
+    db.commit()
+
+    return {"mensaje": "Jugada registrada con éxito"}
+
+
+@app.post("/partida/gano")
+def registrar_victoria(datos: AccionJugadorRequest, db: Session = Depends(get_db)):
+    jugador = db.query(models.Jugador).filter(models.Jugador.id == datos.jugador_id).first()
+    if not jugador:
+        return {"error": "Jugador no encontrado"}
+
+    jugador.partidas_ganadas += 1
+    db_mov = models.LogMovimiento(
+        partida_id=datos.partida_id,  
+        jugador_id=datos.jugador_id,
+        accion=f"¡El jugador {jugador.nombre} ha ganado la partida!"
+    )
+    db.add(db_mov)
+    
+    # 4. Guardamos los cambios en la base de datos
+    db.commit()
+    db.refresh(jugador)
+
+    return {
+        "mensaje": "Victoria registrada con éxito", 
+        "partidas_ganadas": jugador.partidas_ganadas
+    }
+
+@app.get("/partida/nueva")
+def iniciar_nueva_partida(db: Session = Depends(get_db)):
+    # Buscamos el ID de partida más alto que exista en el log
+    ultimo_id = db.query(func.max(models.LogMovimiento.partida_id)).scalar()
+    
+    nuevo_partida_id = (ultimo_id or 0) + 1
+    
+    return {"partida_id": nuevo_partida_id}

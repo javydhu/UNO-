@@ -1,6 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json;
+using Uno.Services;
+using System.Collections.Generic;
 
 namespace Uno.Models;
 
@@ -22,10 +25,12 @@ public class UnoGame
 
     public UnoGame()
     {
-        Players.Add(new Player("Jugador 1"));
-        Players.Add(new Player("Jugador 2"));
-        Players.Add(new Player("Jugador 3"));
-
+        InitializeDeck();
+        StartGame();
+    }
+    public UnoGame(List<Player> players)
+    {
+        Players = players;
         InitializeDeck();
         StartGame();
     }
@@ -175,4 +180,5 @@ public class UnoGame
     {
         CurrentPlayerIndex = (CurrentPlayerIndex + Direction + Players.Count) % Players.Count;
     }
+    
 }
