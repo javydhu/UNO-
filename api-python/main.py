@@ -127,8 +127,16 @@ def registrar_robo(datos: AccionJugadorRequest, db: Session = Depends(get_db)):
     if not jugador:
         return {"error": "Jugador no encontrado"}
     
-    print(f"El jugador {jugador.nombre} (ID: {datos.jugador_id}) robó una carta.")
-    return {"mensaje": "Robo registrado con éxito"} # <-- ¡Importante retornar JSON!
+    # 1. Creamos y guardamos el registro en la base de datos
+    db_mov = models.LogMovimiento(
+        partida_id=1,  # Usamos la partida 1 por defecto mientras manejas el ID de partida
+        jugador_id=datos.jugador_id,
+        accion=f"El jugador {jugador.nombre} robó una carta."
+    )
+    db.add(db_mov)
+    db.commit()
+
+    return {"mensaje": "Robo registrado con éxito"}
     
 
 @app.post("/partida/tomar-penalizacion")
@@ -137,8 +145,16 @@ def registrar_penalizacion(datos: AccionJugadorRequest, db: Session = Depends(ge
     if not jugador:
         return {"error": "Jugador no encontrado"}
 
-    print(f"El jugador {jugador.nombre} se comió las cartas de castigo.")
-    return {"mensaje": "Penalización registrada con éxito"} # <-- ¡Importante retornar JSON!
+    # Guardamos la penalización en el log
+    db_mov = models.LogMovimiento(
+        partida_id=1,
+        jugador_id=datos.jugador_id,
+        accion=f"El jugador {jugador.nombre} tomó penalización."
+    )
+    db.add(db_mov)
+    db.commit()
+
+    return {"mensaje": "Penalización registrada con éxito"}
     
 
 @app.post("/partida/pasar-turno")
@@ -147,5 +163,13 @@ def registrar_pase_turno(datos: AccionJugadorRequest, db: Session = Depends(get_
     if not jugador:
         return {"error": "Jugador no encontrado"}
 
-    print(f"El jugador {jugador.nombre} pasó su turno.")
-    return {"mensaje": "Turno pasado con éxito"} # <-- ¡Importante retornar JSON!
+    # Guardamos el pase de turno en el log
+    db_mov = models.LogMovimiento(
+        partida_id=1,
+        jugador_id=datos.jugador_id,
+        accion=f"El jugador {jugador.nombre} pasó su turno."
+    )
+    db.add(db_mov)
+    db.commit()
+
+    return {"mensaje": "Turno pasado con éxito"}
