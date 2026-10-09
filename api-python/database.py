@@ -14,7 +14,7 @@ from sqlalchemy.orm import sessionmaker
 #password: jaro
 #servidor: localhost
 #base de datos: juego_uno_db
-SQLALCHEMY_DATABASE_URL = "mysql+pymysql://root:jaro@localhost/juego_uno_db"
+SQLALCHEMY_DATABASE_URL = "mysql+pymysql://root:jaro3832@localhost/juego_uno_db"
 
 #encinde el motor con la conexion que le acabamos de dar
 #cuando corremos la api es la conexion que existe con la 
