@@ -82,8 +82,7 @@
 					<StackPanel Orientation="Horizontal" Spacing="40" HorizontalAlignment="Center">
 						<!-- Mazo -->
 						<StackPanel HorizontalAlignment="Center">
-							<TextBlock Text=" " Foreground="White" FontSize="16" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,8"/>
-							<!-- Agregamos IsVisible y reemplazamos el Border rojo por la Image -->
+							<TextBlock Text=" " Foreground="Transparent" FontSize="16" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,8"/>
 							<Button Command="{Binding DrawCard}" 
 							        Background="Transparent" 
 							        Padding="0" 
@@ -98,13 +97,25 @@
 
 						<!-- Carta en Mesa -->
 						<StackPanel HorizontalAlignment="Center">
-							<TextBlock Text="Carta en Mesa" Foreground="White" FontSize="16" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,8"/>
+							<TextBlock Text="Carta en Mesa" Foreground="Transparent" FontSize="16" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,8"/>
 							<Image Source="{Binding TopCard.ImagePath, Converter={StaticResource VariableImageConverter}}" Width="100" Height="150"/>
 						</StackPanel>
 					</StackPanel>
 
 					<!-- Botones especiales: Pasar Turno / Tomar Castigo -->
 					<StackPanel Orientation="Horizontal" Spacing="15" HorizontalAlignment="Center">
+                        
+						<!-- DECIR UNO -->
+						<Button Content="¡ UNO !"
+						        Command="{Binding ShoutUno}"
+						        IsVisible="{Binding CanShoutUno}"
+						        Padding="30,10"
+						        Background="#F39C12"
+						        Foreground="White"
+						        FontWeight="Bold"
+						        CornerRadius="8"
+						        Cursor="Hand"/>
+
 						<Button Content="Pasar Turno"
 						        Command="{Binding PassTurn}"
 						        IsVisible="{Binding CanPassTurn}"
@@ -115,7 +126,6 @@
 						        CornerRadius="8"
 						        Cursor="Hand"/>
 
-						<!-- Cambiamos el Content para que lea la propiedad PenaltyButtonText -->
 						<Button Content="{Binding PenaltyButtonText}"
 						        Command="{Binding TakePenalty}"
 						        IsVisible="{Binding HasPendingDraws}"

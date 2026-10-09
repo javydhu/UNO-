@@ -5,8 +5,8 @@ using System.Threading.Tasks;
 using Uno.Models;
 using Uno.Services;
 using System.Collections.Generic;
-namespace Uno.ViewModels;
 
+namespace Uno.ViewModels;
 
 public class MainViewModel : ViewModelBase
 {
@@ -19,7 +19,12 @@ public class MainViewModel : ViewModelBase
     private string _gameOverDetails = string.Empty;
     private Card? _pendingWildCard = null;
     private int partidaId = 0;
-    
+    private bool _hasShoutedUno = false;
+
+    // El botón de UNO aparece solo si el jugador tiene 2 cartas, al menos una es jugable y aún no lo ha presionado
+    public bool CanShoutUno => Game.CurrentPlayer.Hand.Count == 2 
+                            && Game.CurrentPlayer.Hand.Any(c => c.IsPlayable) 
+                            && !_hasShoutedUno;
     public class JugadorRespuesta
     {
         public string Nombre { get; set; }
@@ -90,14 +95,12 @@ public class MainViewModel : ViewModelBase
 
         await Task.Delay(durationMs);
 
-        // Si el token no ha cambiado, significa que no ha habido otro movimiento en el inter
         if (currentToken == _messageToken)
         {
-            UpdateStatus(); // Regresamos al texto normal
+            UpdateStatus(); 
         }
     }
 
-    // Color hexadecimal para el indicador de color activo
     public string ActiveColorHex => Game.ActiveColor switch
     {
         CardColor.Red => "#E74C3C",
@@ -136,11 +139,8 @@ public class MainViewModel : ViewModelBase
     {
         ApiService api = new ApiService();
         List<Player> listaJugadores = new List<Player>();
-        List<string> jugadores = new List<string>();
-        jugadores.Add("Jugador_1");
-        jugadores.Add("Jugador_2");
-        jugadores.Add("Jugador_3");
-        //Asignar numero de partida
+        List<string> jugadores = new List<string> { "Jugador_1", "Jugador_2", "Jugador_3" };
+
         string ans = await api.Obtenerdatos("/partida/nueva");
         if (!string.IsNullOrEmpty(ans))
         {
@@ -160,7 +160,6 @@ public class MainViewModel : ViewModelBase
                     listaJugadores.Add(new Player(jugadorServidor.Id, jugadorServidor.Nombre));
                 }
             }
-
         }
         
         _game = new UnoGame(listaJugadores);
@@ -209,19 +208,35 @@ public class MainViewModel : ViewModelBase
         }
     }
 
-    private async void  ExecutePlayCard(Card card, CardColor? chosenColor)
+    private async void ExecutePlayCard(Card card, CardColor? chosenColor)
     {
         Player currentPlayer = _game.CurrentPlayer;
+        int cardsBeforePlay = currentPlayer.Hand.Count; // Guardamos cuántas cartas tenía antes de jugar
 
         if (_game.PlayCard(currentPlayer, card, chosenColor))
         {
             string? colorElegidoStr = chosenColor?.ToString();
-            await RegistrarJugadaEnServidor(_game.CurrentPlayer, card , colorElegidoStr);
+            await RegistrarJugadaEnServidor(currentPlayer, card , colorElegidoStr);
+
+            // CASTIGO POR NO DECIR UNO
+            if (cardsBeforePlay == 2) // Si tenía 2 cartas y jugó una, se quedó con 1
+            {
+                if (!_hasShoutedUno)
+                {
+                    ShowTemporaryMessage($"¡{currentPlayer.Name} olvidó decir UNO! Roba 2 cartas de castigo.", 5000);
+                    for (int i = 0; i < 2; i++)
+                    {
+                        Card? drawn = _game.DrawCardFromPile();
+                        if (drawn != null) currentPlayer.Hand.Add(drawn);
+                    }
+                }
+            }
+            _hasShoutedUno = false;
 
             if (currentPlayer.Hand.Count == 0)
             {
                 EndGameWithWinner(currentPlayer.Name, "¡Se ha quedado sin cartas!");
-                await RegistrarVictoriaEnServidor(_game.CurrentPlayer);
+                await RegistrarVictoriaEnServidor(currentPlayer);
                 return;
             }
 
@@ -231,7 +246,6 @@ public class MainViewModel : ViewModelBase
         }
         else
         {
-            // Usamos el mensaje temporal en lugar de cambiarlo permanentemente
             string errorMsg = Game.PendingDrawCards > 0
                 ? $"¡Hay un +{Game.PendingDrawCards} acumulado! Responde con +2/+4 o toma el castigo."
                 : "Movimiento inválido. Elige una carta del mismo color, número o comodín.";
@@ -240,6 +254,13 @@ public class MainViewModel : ViewModelBase
         }
     }
 
+    // BOTÓN ¡UNO!
+    public void ShoutUno()
+    {
+        _hasShoutedUno = true;
+        ShowTemporaryMessage($"¡{Game.CurrentPlayer.Name} ha dicho UNO!", 3000);
+        NotifyAllPositions(); // Refrescamos para que el botón desaparezca
+    }
     public async void DrawCard()
     {
         if (IsGameOver || Game.DrawPile.Count == 0 || HasPendingDraws) return;
@@ -251,7 +272,6 @@ public class MainViewModel : ViewModelBase
             _game.CurrentPlayer.Hand.Add(drawnCard);
            
             await RegistrarRoboEnServidor(_game.CurrentPlayer);
-            // Mensaje temporal al robar
             ShowTemporaryMessage($"{_game.CurrentPlayer.Name} ha robado una carta.", 3000);
         }
 
@@ -268,8 +288,9 @@ public class MainViewModel : ViewModelBase
             
             AssignCardActions();
             await RegistrarPenalizacionEnServidor(_game.CurrentPlayer);
+            
+            _hasShoutedUno = false; // Reset de UNO si se pierde el turno
 
-            // Mensaje temporal de castigo
             ShowTemporaryMessage($"{victim.Name} no pudo responder y robó {count} cartas.", 5000);
            
             NotifyAllPositions();
@@ -288,6 +309,8 @@ public class MainViewModel : ViewModelBase
             return;
         }
         await RegistrarPaseDeTurnoEnServidor(_game.CurrentPlayer);
+
+        _hasShoutedUno = false; // Reset de UNO
 
         Game.NextTurn();
         AssignCardActions();
@@ -330,12 +353,10 @@ public class MainViewModel : ViewModelBase
         {
             if (Game.PendingDrawCards > 0)
             {
-                // Si hay castigo acumulado, solo puede responder con +2 o +4
                 card.IsPlayable = (card.Value == CardValue.DrawTwo || card.Value == CardValue.WildDrawFour);
             }
             else
             {
-                // De lo contrario, checamos reglas normales (mismo color, número o comodín)
                 card.IsPlayable = card.CanPlayOn(TopCard, Game.ActiveColor);
             }
         }
@@ -354,14 +375,16 @@ public class MainViewModel : ViewModelBase
         OnPropertyChanged(nameof(CanPassTurn));
         OnPropertyChanged(nameof(ActiveColorHex));
        
-        // Agregamos las nuevas notificaciones
         OnPropertyChanged(nameof(HasCardsInDeck));
         OnPropertyChanged(nameof(PenaltyButtonText));
+
+        // Refrescamos el estado del botón de UNO
+        OnPropertyChanged(nameof(CanShoutUno));
     }
 
     private void UpdateStatus()
     {
-        _messageToken++; // Incrementamos el token para cancelar cualquier temporizador de 5 segundos que siga corriendo
+        _messageToken++; 
 
         if (Game.PendingDrawCards > 0)
         {
@@ -372,61 +395,35 @@ public class MainViewModel : ViewModelBase
             StatusMessage = $"Turno de: {Game.CurrentPlayer.Name} | Mazo: {Game.DrawPile.Count} cartas";
         }
     }
+
     public async Task RegistrarJugadaEnServidor(Player jugador, Card carta, string colorElegido = null)
     {
         ApiService api = new ApiService();
-
-        // Armamos el paquete JSON con el ID real del jugador y la carta jugada
         var datosJugada = new
         {
             jugador_id = jugador.Id,
             partida_id = partidaId,
             color_carta = carta.Color.ToString(),
             valor_carta = carta.Value.ToString(),
-            color_elegido = colorElegido // Si utiliza un comodin
+            color_elegido = colorElegido 
         };
-
-        // Llamamos al endpoint de la API encargado
         string respuesta = await api.EnviarJugadaLog("/partida/jugar-carta", datosJugada);
-
-        if (respuesta != null)
-        {
-            Console.WriteLine("Acción registrada en el servidor correctamente.");
-        }
+        if (respuesta != null) Console.WriteLine("Acción registrada en el servidor correctamente.");
     }
     
     public async Task RegistrarVictoriaEnServidor(Player jugador)
     {
         ApiService api = new ApiService();
-
-        // Armamos el paquete JSON con el ID real del jugador y la carta jugada
-        var datosJugada = new
-        {
-            jugador_id = jugador.Id,
-            partida_id = partidaId
-        };
-
-        // Llamamos al endpoint de la API encargado
+        var datosJugada = new { jugador_id = jugador.Id, partida_id = partidaId };
         string respuesta = await api.EnviarJugadaLog("/partida/gano", datosJugada);
-
-        if (respuesta != null)
-        {
-            Console.WriteLine("Acción registrada en el servidor correctamente.");
-        }
+        if (respuesta != null) Console.WriteLine("Acción registrada en el servidor correctamente.");
     }
     
     public async Task RegistrarRoboEnServidor(Player jugador)
     {
         ApiService api = new ApiService();
-
-        var datosRobo = new
-        {
-            jugador_id = jugador.Id,
-            partida_id = partidaId
-        };
-
+        var datosRobo = new { jugador_id = jugador.Id, partida_id = partidaId };
         string respuesta = await api.EnviarJugadaLog("/partida/robar-carta", datosRobo);
-        
     }
     
     public async Task RegistrarPenalizacionEnServidor(Player jugador)
