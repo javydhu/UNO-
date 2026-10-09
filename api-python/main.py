@@ -185,8 +185,8 @@ def registrar_jugada(datos: JugadaRequest, db: Session = Depends(get_db)):
     if not jugador:
         return {"error": "Jugador no encontrado"}
 
-    if datos.color_elegido is not None:
-       accion_texto = f"El jugador {jugador.nombre} jugó comodin {datos.valor_carta} y cambio el color a {datos.color_elegido}"
+    if datos.color_carta == "Wild":
+       accion_texto = f"El jugador {jugador.nombre} jugó {datos.valor_carta} y cambio el color a {datos.color_elegido}"
     else:
         accion_texto = f"El jugador {jugador.nombre} jugó {datos.color_carta} {datos.valor_carta}."
 
