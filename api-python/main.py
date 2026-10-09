@@ -45,6 +45,12 @@ class AccionJugadorRequest(BaseModel):
     jugador_id: int
     partida_id: int
 
+class AccionDijoUno(BaseModel):
+    jugador_id: int
+    partida_id: int
+    decision: bool
+
+
 class JugadaRequest(BaseModel):
     jugador_id: int
     partida_id: int
@@ -232,3 +238,32 @@ def iniciar_nueva_partida(db: Session = Depends(get_db)):
     nuevo_partida_id = (ultimo_id or 0) + 1
     
     return {"partida_id": nuevo_partida_id}
+
+@app.post("/partida/uno")
+def registrar_victoria(datos: AccionDijoUno, db: Session = Depends(get_db)):
+    jugador = db.query(models.Jugador).filter(models.Jugador.id == datos.jugador_id).first()
+    if not jugador:
+        return {"error": "Jugador no encontrado"}
+
+    if datos.decision == True:
+        db_mov = models.LogMovimiento(
+            partida_id=datos.partida_id,  
+            jugador_id=datos.jugador_id,
+            accion=f"¡{jugador.nombre} dijo UNO!"
+        )
+    else:
+        db_mov = models.LogMovimiento(
+            partida_id=datos.partida_id,  
+            jugador_id=datos.jugador_id,
+            accion=f"¡{jugador.nombre} no dijo UNO!"
+        )
+    db.add(db_mov)
+    
+    #Guardamos los cambios en la base de datos
+    db.commit()
+    db.refresh(jugador)
+
+    return {
+        "mensaje": "Victoria registrada con éxito", 
+        "partidas_ganadas": jugador.partidas_ganadas
+    }
