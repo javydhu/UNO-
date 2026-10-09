@@ -3,6 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
 using Uno.Services;
+using Uno.Models;
+using System.Threading.Tasks;
+
 using System.Collections.Generic;
 
 namespace Uno.Models;
@@ -18,7 +21,8 @@ public class UnoGame
     public CardColor ActiveColor { get; set; }
 
     public int PendingDrawCards { get; set; } = 0; 
-    public int ConsecutivePasses { get; set; } = 0; 
+    public int ConsecutivePasses { get; set; } = 0;
+    public int partidaId;
 
     public Card TopCard => DiscardPile.LastOrDefault()!;
     public Player CurrentPlayer => Players[CurrentPlayerIndex];
@@ -35,11 +39,19 @@ public class UnoGame
         StartGame();
     }
 
-    private void InitializeDeck()
+    private async void InitializeDeck()
     {
         DrawPile.Clear();
         DiscardPile.Clear();
 
+        ApiService api = new ApiService();
+
+        string ans = await api.Obtenerdatos("/partida/nueva");
+        if (!string.IsNullOrEmpty(ans))
+        {
+            var datosJson = JsonSerializer.Deserialize<Dictionary<string, int>>(ans);
+            partidaId = datosJson != null && datosJson.ContainsKey("partida_id") ? datosJson["partida_id"] : 1;
+        }
         // 108 Cartas Exactas de UNO
         foreach (CardColor color in Enum.GetValues(typeof(CardColor)))
         {
@@ -72,13 +84,18 @@ public class UnoGame
         DrawPile = DrawPile.OrderBy(_ => rnd.Next()).ToList();
     }
 
-    public void StartGame()
+    public async void StartGame()
     {
         foreach (var player in Players)
         {
             for (int i = 0; i < 7; i++)
             {
-                if (DrawPile.Count > 0) player.Hand.Add(DrawCardFromPile()!);
+                if (DrawPile.Count > 0)
+                {
+                    Card card = DrawCardFromPile();
+                    player.Hand.Add(card!);
+                    await RegistrarRoboEnServidor(player, card!);
+                }
             }
         }
 
@@ -181,4 +198,10 @@ public class UnoGame
         CurrentPlayerIndex = (CurrentPlayerIndex + Direction + Players.Count) % Players.Count;
     }
     
+    public async Task RegistrarRoboEnServidor(Player jugador, Card card)
+    {
+        ApiService api = new ApiService();
+        var datosRobo = new { jugador_id = jugador.Id, partidaId, card.Color, card.Value };
+        string respuesta = await api.EnviarJugadaLog("/partida/robar-carta", datosRobo);
+    }
 }

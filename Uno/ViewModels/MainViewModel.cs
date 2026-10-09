@@ -249,6 +249,7 @@ public class MainViewModel : ViewModelBase
             {
                 if (!_hasShoutedUno)
                 {
+                    await RegistrarUno(_game.CurrentPlayer);
                     ShowTemporaryMessage($"¡{currentPlayer.Name} olvidó decir UNO! Roba 2 cartas de castigo.", 5000);
                     for (int i = 0; i < 2; i++)
                     {
@@ -281,9 +282,10 @@ public class MainViewModel : ViewModelBase
     }
 
     // BOTÓN ¡UNO!
-    public void ShoutUno()
+    public async void ShoutUno()
     {
         _hasShoutedUno = true;
+        await RegistrarUno(_game.CurrentPlayer);
         ShowTemporaryMessage($"¡{Game.CurrentPlayer.Name} ha dicho UNO!", 3000);
         NotifyAllPositions(); // Refrescamos para que el botón desaparezca
     }
@@ -462,5 +464,11 @@ public class MainViewModel : ViewModelBase
     {
         ApiService api = new ApiService();
         await api.EnviarJugadaLog("/partida/pasar-turno", new { jugador_id = jugador.Id, partida_id = partidaId });
+    }
+    
+    public async Task RegistrarUno(Player jugador)
+    {
+        ApiService api = new ApiService();
+        await api.EnviarJugadaLog("/partida/uno", new { jugador_id = jugador.Id, partida_id = partidaId, _hasShoutedUno });
     }
 }
