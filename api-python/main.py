@@ -37,11 +37,16 @@ class MovimientoCreate(BaseModel):
   jugador_id: int
   accion: str
   
-class JugadorCreate(BaseModel):
-    nombre str
 
-class AccionJugadorReques(Basemodel):
+class AccionJugadorRequest(BaseModel):
     jugador_id: int
+
+class JugadaRequest(BaseModel):
+    jugador_id: int
+    color_carta: str
+    valor_carta: str
+    color_elegido: str | None = None
+
 #Ahora siguen los endpoints
 
 
@@ -95,46 +100,52 @@ def obtener_log_partida(partida_id: int, db: Session = Depends(get_db)):
   )
   
 @app.post("/jugadores/login")
-def resgistrar_jugador(datos: JugadorCreate, db: Session = Depends(get_db));
-    jugador_existente = db.query(Jugador).filter(Jugador.nombre == datos.nombre).first() #Jugador con el mismo nombre
-    if jugador_existente
+def resgistrar_jugador(datos: JugadorCreate, db: Session = Depends(get_db)):
+    # CORREGIDO: Usamos models.Jugador en lugar de 'datos'
+    jugador_existente = db.query(models.Jugador).filter(models.Jugador.nombre == datos.nombre).first()
+    if jugador_existente:
         return jugador_existente
     
-    nuevo_jugador = Jugador(nombre = datos.nombre, partidas_ganadas = 0)
+    # CORREGIDO: Instanciamos el modelo correcto de SQLAlchemy
+    nuevo_jugador = models.Jugador(nombre=datos.nombre, partidas_ganadas=0)
     db.add(nuevo_jugador)
     db.commit()
-    db.refresh
+    db.refresh(nuevo_jugador) # CORREGIDO: Se le pasa el objeto a refrescar
    
     return nuevo_jugador
   
 @app.post("/partida/robar-carta")
 def registrar_robo(datos: AccionJugadorRequest, db: Session = Depends(get_db)):
-    #se busca al jugador en la base de datos
-    jugador = db.query(Jugador).filter(Jugador.id == datos.jugador_id).first()
+    # CORREGIDO: Buscamos en models.Jugador usando models.Jugador.id
+    jugador = db.query(models.Jugador).filter(models.Jugador.id == datos.jugador_id).first()
     
     if not jugador:
         return {"error": "Jugador no encontrado"}
     
-    # Registro de cuantas cartas robo
     print(f"El jugador {jugador.nombre} (ID: {datos.jugador_id}) robó una carta.")
-    
+    return {"mensaje": "Robo registrado"}
 
 @app.post("/partida/tomar-penalizacion")
 def registrar_penalizacion(datos: AccionJugadorRequest, db: Session = Depends(get_db)):
-    jugador = db.query(Jugador).filter(Jugador.id == datos.jugador_id).first()
+    jugador = db.query(models.Jugador).filter(models.Jugador.id == datos.jugador_id).first()
     
     if not jugador:
         return {"error": "Jugador no encontrado"}
 
     print(f"El jugador {jugador.nombre} se comio las cartas de castigo.")
-    
+    return {"mensaje": "Penalización registrada"}
 
 @app.post("/partida/pasar-turno")
 def registrar_pase_turno(datos: AccionJugadorRequest, db: Session = Depends(get_db)):
-    jugador = db.query(Jugador).filter(Jugador.id == datos.jugador_id).first()
+    jugador = db.query(models.Jugador).filter(models.Jugador.id == datos.jugador_id).first()
     
     if not jugador:
         return {"error": "Jugador no encontrado"}
 
     print(f"El jugador {jugador.nombre} pasó su turno.")
-    
+    return {"mensaje": "Turno pasado"}
+
+@app.post("/partida/jugar-carta")
+def registrar_jugada(datos: JugadaRequest, db: Session = Depends(get_db)):
+    # Lógica para registrar la jugada en la base de datos
+    return {"mensaje": "Jugada registrada con éxito"}
