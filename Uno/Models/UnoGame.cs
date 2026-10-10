@@ -3,7 +3,11 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
 using Uno.Services;
+using Uno.Models;
+using System.Threading.Tasks;
+
 using System.Collections.Generic;
+using System.Reflection.Metadata.Ecma335;
 
 namespace Uno.Models;
 
@@ -18,7 +22,8 @@ public class UnoGame
     public CardColor ActiveColor { get; set; }
 
     public int PendingDrawCards { get; set; } = 0; 
-    public int ConsecutivePasses { get; set; } = 0; 
+    public int ConsecutivePasses { get; set; } = 0;
+    public int partidaId = 1;
 
     public Card TopCard => DiscardPile.LastOrDefault()!;
     public Player CurrentPlayer => Players[CurrentPlayerIndex];
@@ -28,8 +33,9 @@ public class UnoGame
         InitializeDeck();
         StartGame();
     }
-    public UnoGame(List<Player> players)
+    public UnoGame(List<Player> players, int id)
     {
+        partidaId = id;
         Players = players;
         InitializeDeck();
         StartGame();
@@ -39,7 +45,7 @@ public class UnoGame
     {
         DrawPile.Clear();
         DiscardPile.Clear();
-
+        
         // 108 Cartas Exactas de UNO
         foreach (CardColor color in Enum.GetValues(typeof(CardColor)))
         {
@@ -78,7 +84,11 @@ public class UnoGame
         {
             for (int i = 0; i < 7; i++)
             {
-                if (DrawPile.Count > 0) player.Hand.Add(DrawCardFromPile()!);
+                if (DrawPile.Count > 0)
+                {
+                    //player.Hand.Add(DrawCardFromPile()!);
+                    entregar_carta(player);
+                }
             }
         }
 
@@ -90,6 +100,13 @@ public class UnoGame
         } while (firstCard.Color == CardColor.Wild);
 
         ActiveColor = firstCard.Color;
+    }
+    
+    public async void entregar_carta(Player player)
+    {
+        Card card = DrawCardFromPile();
+        player.Hand.Add(DrawCardFromPile()!);
+        await RegistrarRoboEnServidor(player, card!);
     }
 
     public Card? DrawCardFromPile()
@@ -179,6 +196,13 @@ public class UnoGame
     public void NextTurn()
     {
         CurrentPlayerIndex = (CurrentPlayerIndex + Direction + Players.Count) % Players.Count;
+    }
+    
+    public async Task RegistrarRoboEnServidor(Player jugador, Card card)
+    {
+        ApiService api = new ApiService();
+        var datosRobo = new { jugador_id = jugador.Id, partida_id =  partidaId, color_carta= card.Color.ToString(), valor_carta =card.Value.ToString() };
+        string respuesta = await api.EnviarJugadaLog("/partida/robar-carta", datosRobo);
     }
     
 }

@@ -163,7 +163,7 @@ public class MainViewModel : ViewModelBase
             }
         }
         
-        _game = new UnoGame(listaJugadores);
+        _game = new UnoGame(listaJugadores, partidaId);
         IsGameStarted = true;
         IsGameOver = false;
 
@@ -249,6 +249,7 @@ public class MainViewModel : ViewModelBase
             {
                 if (!_hasShoutedUno)
                 {
+                    await RegistrarUno(_game.CurrentPlayer);
                     ShowTemporaryMessage($"¡{currentPlayer.Name} olvidó decir UNO! Roba 2 cartas de castigo.", 5000);
                     for (int i = 0; i < 2; i++)
                     {
@@ -281,9 +282,10 @@ public class MainViewModel : ViewModelBase
     }
 
     // BOTÓN ¡UNO!
-    public void ShoutUno()
+    public async void ShoutUno()
     {
         _hasShoutedUno = true;
+        await RegistrarUno(_game.CurrentPlayer);
         ShowTemporaryMessage($"¡{Game.CurrentPlayer.Name} ha dicho UNO!", 3000);
         NotifyAllPositions(); // Refrescamos para que el botón desaparezca
     }
@@ -297,7 +299,7 @@ public class MainViewModel : ViewModelBase
             drawnCard.PlayAction = PlayCard;
             _game.CurrentPlayer.Hand.Add(drawnCard);
            
-            await RegistrarRoboEnServidor(_game.CurrentPlayer);
+            await RegistrarRoboEnServidor(_game.CurrentPlayer, drawnCard);
             ShowTemporaryMessage($"{_game.CurrentPlayer.Name} ha robado una carta.", 3000);
         }
 
@@ -445,10 +447,16 @@ public class MainViewModel : ViewModelBase
         if (respuesta != null) Console.WriteLine("Acción registrada en el servidor correctamente.");
     }
     
-    public async Task RegistrarRoboEnServidor(Player jugador)
+    public async Task RegistrarRoboEnServidor(Player jugador, Card card)
     {
         ApiService api = new ApiService();
-        var datosRobo = new { jugador_id = jugador.Id, partida_id = partidaId };
+        var datosRobo = new
+        {
+            jugador_id = jugador.Id, 
+            partida_id = partidaId, 
+            color_carta= card.Color.ToString() , 
+            valor_carta = card.Value.ToString()
+        };
         string respuesta = await api.EnviarJugadaLog("/partida/robar-carta", datosRobo);
     }
     
@@ -462,5 +470,11 @@ public class MainViewModel : ViewModelBase
     {
         ApiService api = new ApiService();
         await api.EnviarJugadaLog("/partida/pasar-turno", new { jugador_id = jugador.Id, partida_id = partidaId });
+    }
+    
+    public async Task RegistrarUno(Player jugador)
+    {
+        ApiService api = new ApiService();
+        await api.EnviarJugadaLog("/partida/uno", new { jugador_id = jugador.Id, partida_id = partidaId, _hasShoutedUno });
     }
 }

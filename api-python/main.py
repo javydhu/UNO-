@@ -50,6 +50,11 @@ class AccionDijoUno(BaseModel):
     partida_id: int
     decision: bool
 
+class JugadorRoba(BaseModel):
+    jugador_id: int
+    partida_id: int
+    color_carta: str
+    valor_carta: str
 
 class JugadaRequest(BaseModel):
     jugador_id: int
@@ -133,7 +138,7 @@ def resgistrar_jugador(datos: JugadorCreate, db: Session = Depends(get_db)):
     }
   
 @app.post("/partida/robar-carta")
-def registrar_robo(datos: AccionJugadorRequest, db: Session = Depends(get_db)):
+def registrar_robo(datos: JugadorRoba, db: Session = Depends(get_db)):
     jugador = db.query(models.Jugador).filter(models.Jugador.id == datos.jugador_id).first()
     if not jugador:
         return {"error": "Jugador no encontrado"}
@@ -142,7 +147,7 @@ def registrar_robo(datos: AccionJugadorRequest, db: Session = Depends(get_db)):
     db_mov = models.LogMovimiento(
         partida_id=datos.partida_id,  
         jugador_id=datos.jugador_id,
-        accion=f"El jugador {jugador.nombre} robó una carta."
+        accion=f"El jugador {jugador.nombre} robó la tarjeta {datos.valor_carta} {datos.color_carta}"
     )
     db.add(db_mov)
     db.commit()
