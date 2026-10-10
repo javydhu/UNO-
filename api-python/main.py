@@ -147,7 +147,7 @@ def registrar_robo(datos: JugadorRoba, db: Session = Depends(get_db)):
     db_mov = models.LogMovimiento(
         partida_id=datos.partida_id,  
         jugador_id=datos.jugador_id,
-        accion=f"El jugador {jugador.nombre} robó la tarjeta {datos.valor_carta}  {datos.color_carta}"
+        accion=f"El jugador {jugador.nombre} robó la tarjeta {datos.valor_carta} {datos.color_carta}"
     )
     db.add(db_mov)
     db.commit()

@@ -7,6 +7,7 @@ using Uno.Models;
 using System.Threading.Tasks;
 
 using System.Collections.Generic;
+using System.Reflection.Metadata.Ecma335;
 
 namespace Uno.Models;
 
@@ -22,7 +23,7 @@ public class UnoGame
 
     public int PendingDrawCards { get; set; } = 0; 
     public int ConsecutivePasses { get; set; } = 0;
-    public int partidaId;
+    public int partidaId = 1;
 
     public Card TopCard => DiscardPile.LastOrDefault()!;
     public Player CurrentPlayer => Players[CurrentPlayerIndex];
@@ -32,26 +33,19 @@ public class UnoGame
         InitializeDeck();
         StartGame();
     }
-    public UnoGame(List<Player> players)
+    public UnoGame(List<Player> players, int id)
     {
+        partidaId = id;
         Players = players;
         InitializeDeck();
         StartGame();
     }
 
-    private async void InitializeDeck()
+    private void InitializeDeck()
     {
         DrawPile.Clear();
         DiscardPile.Clear();
-
-        ApiService api = new ApiService();
-
-        string ans = await api.Obtenerdatos("/partida/nueva");
-        if (!string.IsNullOrEmpty(ans))
-        {
-            var datosJson = JsonSerializer.Deserialize<Dictionary<string, int>>(ans);
-            partidaId = datosJson != null && datosJson.ContainsKey("partida_id") ? datosJson["partida_id"] : 1;
-        }
+        
         // 108 Cartas Exactas de UNO
         foreach (CardColor color in Enum.GetValues(typeof(CardColor)))
         {
@@ -84,7 +78,7 @@ public class UnoGame
         DrawPile = DrawPile.OrderBy(_ => rnd.Next()).ToList();
     }
 
-    public async void StartGame()
+    public void StartGame()
     {
         foreach (var player in Players)
         {
@@ -92,9 +86,8 @@ public class UnoGame
             {
                 if (DrawPile.Count > 0)
                 {
-                    Card card = DrawCardFromPile();
-                    player.Hand.Add(card!);
-                    await RegistrarRoboEnServidor(player, card!);
+                    //player.Hand.Add(DrawCardFromPile()!);
+                    entregar_carta(player);
                 }
             }
         }
@@ -107,6 +100,13 @@ public class UnoGame
         } while (firstCard.Color == CardColor.Wild);
 
         ActiveColor = firstCard.Color;
+    }
+    
+    public async void entregar_carta(Player player)
+    {
+        Card card = DrawCardFromPile();
+        player.Hand.Add(DrawCardFromPile()!);
+        await RegistrarRoboEnServidor(player, card!);
     }
 
     public Card? DrawCardFromPile()
@@ -201,7 +201,8 @@ public class UnoGame
     public async Task RegistrarRoboEnServidor(Player jugador, Card card)
     {
         ApiService api = new ApiService();
-        var datosRobo = new { jugador_id = jugador.Id, partidaId, card.Color, card.Value };
+        var datosRobo = new { jugador_id = jugador.Id, partida_id =  partidaId, color_carta= card.Color.ToString(), valor_carta =card.Value.ToString() };
         string respuesta = await api.EnviarJugadaLog("/partida/robar-carta", datosRobo);
     }
+    
 }
