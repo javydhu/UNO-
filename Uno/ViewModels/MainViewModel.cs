@@ -351,7 +351,7 @@ public class MainViewModel : ViewModelBase
         NotifyAllPositions();
     }
 
-    private void CalculateEndGameByPoints()
+    private async void CalculateEndGameByPoints()
     {
         var scores = Game.Players.Select(p => new { Player = p, Score = Game.CalculatePlayerPoints(p) })
                                  .OrderBy(x => x.Score)
@@ -359,6 +359,8 @@ public class MainViewModel : ViewModelBase
 
         var winner = scores.First();
         WinnerName = winner.Player.Name;
+        await RegistrarVictoriaEnServidor(winner.Player);
+
 
         string details = "PUNTUACIÓN FINAL:\n";
         foreach (var s in scores)
