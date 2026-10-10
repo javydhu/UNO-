@@ -269,6 +269,25 @@ def registrar_victoria(datos: AccionDijoUno, db: Session = Depends(get_db)):
     db.refresh(jugador)
 
     return {
-        "mensaje": "Victoria registrada con éxito", 
-        "partidas_ganadas": jugador.partidas_ganadas
+        "mensaje": "Un jugador tiene una carta"
+    }
+    
+@app.post("/partida/sin-cartas")
+def sin_cartas(datos: AccionJugadorRequest, db: Session = Depends(get_db)):
+    jugador = db.query(models.Jugador).filter(models.Jugador.id == datos.jugador_id).first()
+    if not jugador:
+        return {"error": "Jugador no encontrado"}
+        
+    db_mov = models.LogMovimiento(
+        partida_id=datos.partida_id,  
+        jugador_id=datos.jugador_id,
+        accion=f"¡El jugador {jugador.nombre} se acabo el mazo"
+    )
+    db.add(db_mov)
+    
+    db.commit()
+    db.refresh(jugador)
+
+    return {
+        "mensaje": "El mazo se termino", 
     }

@@ -111,10 +111,17 @@ public class UnoGame
 
     public Card? DrawCardFromPile()
     {
-        if (DrawPile.Count == 0) return null; // Mazo agotado (sin rebarajear)
+        if (DrawPile.Count == 0)
+        {
+            return null; // Mazo agotado (sin rebarajear)
+        }
 
         Card drawn = DrawPile[0];
         DrawPile.RemoveAt(0);
+        if (DrawPile.Count == 0){
+            Pilaacabo();
+        }
+
         return drawn;
     }
 
@@ -203,6 +210,20 @@ public class UnoGame
         ApiService api = new ApiService();
         var datosRobo = new { jugador_id = jugador.Id, partida_id =  partidaId, color_carta= card.Color.ToString(), valor_carta =card.Value.ToString() };
         string respuesta = await api.EnviarJugadaLog("/partida/robar-carta", datosRobo);
+    }
+    public async Task RegistrarMazoAgotado(Player jugador, Card card)
+    {
+        ApiService api = new ApiService();
+        var datosRobo = new { jugador_id = jugador.Id, partida_id =  partidaId, color_carta= card.Color.ToString(), valor_carta =card.Value.ToString() };
+        string respuesta = await api.EnviarJugadaLog("/partida/robar-carta", datosRobo);
+    }
+
+    public async void Pilaacabo()
+    {
+        ApiService api = new ApiService();
+        var datosJugada = new { jugador_id = CurrentPlayer.Id, partida_id = partidaId };
+        string ans = await api.EnviarJugadaLog("/partida/sin-cartas", datosJugada);
+        if (ans != null) Console.WriteLine("Acción registrada en el servidor correctamente.");
     }
     
 }

@@ -249,12 +249,17 @@ public class MainViewModel : ViewModelBase
             {
                 if (!_hasShoutedUno)
                 {
-                    await RegistrarUno(_game.CurrentPlayer);
+                    await RegistrarUno(currentPlayer);
                     ShowTemporaryMessage($"¡{currentPlayer.Name} olvidó decir UNO! Roba 2 cartas de castigo.", 5000);
                     for (int i = 0; i < 2; i++)
                     {
                         Card? drawn = _game.DrawCardFromPile();
-                        if (drawn != null) currentPlayer.Hand.Add(drawn);
+                        if (drawn != null)
+                        {
+                            currentPlayer.Hand.Add(drawn);
+                            await RegistrarRoboEnServidor(currentPlayer, drawn);
+                            ShowTemporaryMessage($"{_game.CurrentPlayer.Name} ha robado una carta.", 3000);
+                        }
                     }
                 }
             }
@@ -475,6 +480,6 @@ public class MainViewModel : ViewModelBase
     public async Task RegistrarUno(Player jugador)
     {
         ApiService api = new ApiService();
-        await api.EnviarJugadaLog("/partida/uno", new { jugador_id = jugador.Id, partida_id = partidaId, _hasShoutedUno });
+        await api.EnviarJugadaLog("/partida/uno", new { jugador_id = jugador.Id, partida_id = partidaId, decision=_hasShoutedUno });
     }
 }
