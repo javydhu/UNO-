@@ -238,10 +238,10 @@ def registrar_victoria(datos: AccionJugadorRequest, db: Session = Depends(get_db
     db.refresh(partida)
 
     return {
-        "mensaje": "Victoria registrada con éxito", 
-        "partidas_ganadas": jugador.partidas_ganadas
-        "ganador_id": jugador.ganador_id
-        "partidas ganadas": jugador.partidas_ganadas
+           "mensaje": "Victoria registrada con éxito", 
+           "partida_id": partida.id,
+           "ganador_id": jugador.ganador_id,
+           "partidas ganadas": jugador.partidas_ganadas
     }
 
 @app.get("/partida/nueva")
