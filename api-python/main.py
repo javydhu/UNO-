@@ -244,14 +244,14 @@ def registrar_victoria(datos: AccionJugadorRequest, db: Session = Depends(get_db
            "partidas ganadas": jugador.partidas_ganadas
     }
 
-@app.get("/partida/nueva")
+@app.post("/partida/nueva")
 def iniciar_nueva_partida(db: Session = Depends(get_db)):
     #Buscamos el ID de partida más alto que exista en la tabla de partidas
     nueva_partida = models.Partida()
     db.add(nueva_partida)
     db.commit()
-    db.refresh(nueva_partida);      
-    return {"partida_id": nuevo_partida.id}
+    db.refresh(nueva_partida)
+    return {"partida_id": nueva_partida.id}
 
 @app.post("/partida/uno")
 def registrar_victoria(datos: AccionDijoUno, db: Session = Depends(get_db)):
