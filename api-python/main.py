@@ -240,7 +240,7 @@ def registrar_victoria(datos: AccionJugadorRequest, db: Session = Depends(get_db
     return {
            "mensaje": "Victoria registrada con éxito", 
            "partida_id": partida.id,
-           "ganador_id": jugador.ganador_id,
+           "ganador_id": partida.ganador_id,
            "partidas ganadas": jugador.partidas_ganadas
     }
 
