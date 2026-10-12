@@ -217,8 +217,14 @@ def registrar_victoria(datos: AccionJugadorRequest, db: Session = Depends(get_db
     jugador = db.query(models.Jugador).filter(models.Jugador.id == datos.jugador_id).first()
     if not jugador:
         return {"error": "Jugador no encontrado"}
+    
+    partida = db.query(models.Partida).filter(models.Partida.id == datos.partida_id).first()
+    if not partida:
+        return {"error": "Partida no encontrada"}
 
+    partida.ganador_id = datos.jugador_id
     jugador.partidas_ganadas += 1
+    
     db_mov = models.LogMovimiento(
         partida_id=datos.partida_id,  
         jugador_id=datos.jugador_id,
@@ -229,20 +235,25 @@ def registrar_victoria(datos: AccionJugadorRequest, db: Session = Depends(get_db
     # 4. Guardamos los cambios en la base de datos
     db.commit()
     db.refresh(jugador)
+    db.refresh(partida)
 
     return {
-        "mensaje": "Victoria registrada con éxito", 
-        "partidas_ganadas": jugador.partidas_ganadas
+           "mensaje": "Victoria registrada con éxito", 
+           "partida_id": partida.id,
+           "ganador_id": partida.ganador_id,
+           "partidas ganadas": jugador.partidas_ganadas
     }
 
-@app.get("/partida/nueva")
+@app.post("/partida/nueva")
 def iniciar_nueva_partida(db: Session = Depends(get_db)):
-    # Buscamos el ID de partida más alto que exista en el log
-    ultimo_id = db.query(func.max(models.LogMovimiento.partida_id)).scalar()
-    
-    nuevo_partida_id = (ultimo_id or 0) + 1
-    
-    return {"partida_id": nuevo_partida_id}
+    #Buscamos el ID de partida más alto que exista en la tabla de partidas
+    nueva_partida = models.Partida(
+        jugador_id = 1
+    )
+    db.add(nueva_partida)
+    db.commit()
+    db.refresh(nueva_partida)
+    return {"partida_id": nueva_partida.id}
 
 @app.post("/partida/uno")
 def registrar_victoria(datos: AccionDijoUno, db: Session = Depends(get_db)):
