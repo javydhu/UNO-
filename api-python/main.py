@@ -247,7 +247,9 @@ def registrar_victoria(datos: AccionJugadorRequest, db: Session = Depends(get_db
 @app.post("/partida/nueva")
 def iniciar_nueva_partida(db: Session = Depends(get_db)):
     #Buscamos el ID de partida más alto que exista en la tabla de partidas
-    nueva_partida = models.Partida()
+    nueva_partida = models.Partida(
+        jugador_id = 1
+    )
     db.add(nueva_partida)
     db.commit()
     db.refresh(nueva_partida)

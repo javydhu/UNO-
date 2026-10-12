@@ -142,7 +142,7 @@ public class MainViewModel : ViewModelBase
         List<Player> listaJugadores = new List<Player>();
         List<string> jugadores = new List<string> { "Jugador_1", "Jugador_2", "Jugador_3" };
 
-        string ans = await api.Obtenerdatos("/partida/nueva");
+        string ans = await api.EnviarJugadaLog("/partida/nueva", "");
         if (!string.IsNullOrEmpty(ans))
         {
             var datosJson = JsonSerializer.Deserialize<Dictionary<string, int>>(ans);
