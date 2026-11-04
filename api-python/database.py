@@ -19,6 +19,7 @@ SQLALCHEMY_DATABASE_URL = "mysql+pymysql://jaro:jaro3832@localhost/juego_uno_db"
 #encinde el motor con la conexion que le acabamos de dar
 #cuando corremos la api es la conexion que existe con la 
 
+
 engine = create_engine(SQLALCHEMY_DATABASE_URL)
 
 #Es la que nos ayuda a hacer las sesiones cuando las solicitan
