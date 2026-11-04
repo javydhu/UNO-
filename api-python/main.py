@@ -246,14 +246,40 @@ def registrar_victoria(datos: AccionJugadorRequest, db: Session = Depends(get_db
 
 @app.post("/partida/nueva")
 def iniciar_nueva_partida(db: Session = Depends(get_db)):
-    #Buscamos el ID de partida más alto que exista en la tabla de partidas
-    nueva_partida = models.Partida(
-        jugador_id = 1
-    )
+    # 1. Se crea la partida (ya no recibe jugador_id directamente)
+    nueva_partida = models.Partida()
     db.add(nueva_partida)
     db.commit()
-    db.refresh(nueva_partida)
+    db.refresh(nueva_partida) # Obtenemos el ID generado de la partida
+    
+    # 2. Vinculamos al anfitrión (jugador 1) usando la nueva tabla intermedia
+    nuevo_vinculo = models.JugadorPartida(
+        jugador_id=1,
+        partida_id=nueva_partida.id
+    )
+    db.add(nuevo_vinculo)
+    db.commit()
+    
     return {"partida_id": nueva_partida.id}
+
+@app.post("/partida/unirse")
+def unirse_a_partida(datos: AccionJugadorRequest, db: Session = Depends(get_db)):
+    # Verificamos si el jugador y la partida existen
+    jugador = db.query(models.Jugador).filter(models.Jugador.id == datos.jugador_id).first()
+    partida = db.query(models.Partida).filter(models.Partida.id == datos.partida_id).first()
+    
+    if not jugador or not partida:
+        return {"error": "Jugador o Partida no encontrados"}
+        
+    # Registramos al jugador en la tabla intermedia
+    nuevo_vinculo = models.JugadorPartida(
+        jugador_id=datos.jugador_id,
+        partida_id=datos.partida_id
+    )
+    db.add(nuevo_vinculo)
+    db.commit()
+    
+    return {"mensaje": f"El jugador {jugador.nombre} se unió a la partida {partida.id}"}
 
 @app.post("/partida/uno")
 def registrar_victoria(datos: AccionDijoUno, db: Session = Depends(get_db)):
