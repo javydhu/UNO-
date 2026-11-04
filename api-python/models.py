@@ -14,8 +14,8 @@ class Jugador(Base):
   
   #Relaciones
   movimientos = relationship("LogMovimiento", back_populates="jugador")
-  partidas = relationship("Partida", foreign_keys="Partida.jugador_id", back_populates="jugador")
   partidas_ganadas_rel = relationship("Partida", foreign_keys="Partida.ganador_id", back_populates="ganador")
+  participaciones = relationship("JugadorPartida", back_populates="jugador")
 
 class LogMovimiento(Base):
   __tablename__ = "log_movimientos"
@@ -32,9 +32,17 @@ class Partida(Base):
     __tablename__ = "partidas"
     
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    jugador_id = Column(Integer, ForeignKey("jugadores.id"))
     ganador_id = Column(Integer, ForeignKey("jugadores.id"), nullable=True)
     
-    jugador = relationship("Jugador", foreign_keys=[jugador_id], back_populates="partidas")
     ganador = relationship("Jugador", foreign_keys=[ganador_id], back_populates="partidas_ganadas_rel")
     movimientos = relationship("LogMovimiento", back_populates="partida")
+    jugadores = relationship("JugadorPartida", back_populates="partida")
+
+class Jugador_Partida(Base):
+    __tablename__ = "jugador_partida"
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    jugador_id = Column(Integer, ForeignKey("jugadores.id"), nullable=False)
+    partida_id = Column(Integer, ForeignKey("partidas.id"), nullable=False)
+    
+    jugador = relationship("Jugador", back_populates="participaciones")
+    partida = relationship("Partida", back_populates="jugadores")
