@@ -1,5 +1,6 @@
 #Es lo que nos ayuda a crear la conexion
 from sqlalchemy import create_engine
+from sqlalchemy.orm import declarative_base     
 
 #Es la clase que nos ayuda a poner en codigo las bases
 #relacionales de la cual van a heredar los modelos

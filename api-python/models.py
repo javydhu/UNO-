@@ -1,5 +1,7 @@
 from database import Base #Se importa la base que es una clase que extiende de base de datos relacional
 from sqlalchemy import Column, Integer, String, ForeignKey
+from sqlalchemy import UniqueConstraint
+
 #Se integran los datos para poder usarlos como 
 #tipos de datos en el codigo
 from sqlalchemy.orm import relationship
@@ -21,8 +23,17 @@ class LogMovimiento(Base):
   __tablename__ = "log_movimientos"
 
   id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-  partida_id = Column(Integer, ForeignKey("partidas.id"))
-  jugador_id = Column(Integer, ForeignKey("jugadores.id"))
+  partida_id = Column(
+      Integer,
+      ForeignKey("partidas.id"),
+      nullable=False
+  )
+  
+  jugador_id = Column(
+      Integer,
+      ForeignKey("jugadores.id"),
+      nullable=False
+  )
   accion = Column(String(255), nullable=False)
   
   jugador = relationship("Jugador", back_populates="movimientos")
@@ -38,11 +49,31 @@ class Partida(Base):
     movimientos = relationship("LogMovimiento", back_populates="partida")
     jugadores = relationship("JugadorPartida", back_populates="partida")
 
-class Jugador_Partida(Base):
+class JugadorPartida(Base):
     __tablename__ = "jugador_partida"
+
+    __table_args__ = (
+        UniqueConstraint(
+            "jugador_id",
+            "partida_id",
+            name="uq_jugador_partida"
+        ),
+    )
+
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    jugador_id = Column(Integer, ForeignKey("jugadores.id"), nullable=False)
-    partida_id = Column(Integer, ForeignKey("partidas.id"), nullable=False)
-    
+
+    jugador_id = Column(
+        Integer,
+        ForeignKey("jugadores.id"),
+        nullable=False
+    )
+
+    partida_id = Column(
+        Integer,
+        ForeignKey("partidas.id"),
+        nullable=False
+    )
+
     jugador = relationship("Jugador", back_populates="participaciones")
+
     partida = relationship("Partida", back_populates="jugadores")
