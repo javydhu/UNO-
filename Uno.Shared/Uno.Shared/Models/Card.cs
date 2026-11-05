@@ -8,12 +8,17 @@ public enum CardValue { Zero, One, Two, Three, Four, Five, Six, Seven, Eight, Ni
 
 public class Card 
 {
+    public Guid Id { get; set; } = Guid.NewGuid();
     public CardColor Color { get; set; }
     public CardValue Value { get; set; }
 
     // Propiedad que indica si la carta es válida para jugarse 
+    /*
     public bool IsPlayable { get; set; }   
+    */
+    /*
     public Action<Card>? PlayAction { get; set; }
+    */
 
     public Card(CardColor color, CardValue value)
     {
@@ -29,12 +34,12 @@ public class Card
         return false;
     }
 
-    public void OnCardClicked()
+    /*public void OnCardClicked()
     {
         PlayAction?.Invoke(this);
-    }
+    }*/
 
-    private string GetImagePath()
+    /*private string GetImagePath()
     {
         if (Color == CardColor.Wild)
         {
@@ -63,7 +68,7 @@ public class Card
         };
 
         return $"avares://Uno/Assets/Cards/{colorStr}{valStr}.png";
-    }
+    }*/
 
     public override string ToString() => $"{Color} {Value}";
 }

@@ -13,7 +13,7 @@ public class Player
     public string Name { get; set; }
     public int Id { get; set; }
 
-    public ObservableCollection<Card> Hand { get; set; } = new();
+    public List<Card> Hand { get; set; } = new();
     
     public Player(int id, string name)
     {
