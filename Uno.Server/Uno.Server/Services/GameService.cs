@@ -1,37 +1,41 @@
+using System;
 using System.Linq;
+using System.Threading.Tasks;
 using Uno.Shared.Models;
 
 namespace Uno.Server.Services;
 
 public class GameService
 {
-    public ActionResult ProcessAction(
+    private readonly PythonApiService _pythonApi;
+
+    public GameService(PythonApiService pythonApi)
+    {
+        _pythonApi = pythonApi;
+    }
+
+    public async Task<ActionResultMessage> ProcessActionAsync(
         UnoGame game,
         Player player,
         NetworkMessage request)
     {
         switch (request.Type)
         {
-            // Jugar una carta
+         //Jugar carta
+
             case "play_card":
             {
                 PlayCardRequest? data =
                     request.GetData<PlayCardRequest>();
 
                 if (data == null)
-                {
-                    return Reject("Solicitud de jugada inválida.");
-                }
+                    return Reject("Solicitud inválida.");
 
-                // Buscar la carta real dentro de la mano.
                 Card? card = player.Hand.FirstOrDefault(
                     c => c.Id == data.CardId);
 
                 if (card == null)
-                {
-                    return Reject(
-                        "La carta no pertenece a tu mano.");
-                }
+                    return Reject("La carta no pertenece a tu mano.");
 
                 bool accepted = game.PlayCard(
                     player,
@@ -39,29 +43,56 @@ public class GameService
                     data.ChosenColor);
 
                 if (!accepted)
+                    return Reject("La jugada no es válida.");
+
+                await TryRegisterAsync(() =>
+                    _pythonApi.RegistrarJugadaEnServidorAsync(
+                        player,
+                        game.PartidaId,
+                        card,
+                        data.ChosenColor));
+
+                if (game.LastUnoDecision == false)
                 {
-                    return Reject(
-                        "La jugada no es válida.");
+                    await TryRegisterAsync(() =>
+                        _pythonApi.RegistrarUnoAsync(
+                            player,
+                            game.PartidaId,
+                            false));
+
+                    foreach (Card penaltyCard in game.LastUnoPenaltyCards)
+                    {
+                        await TryRegisterAsync(() =>
+                            _pythonApi.RegistrarRoboEnServidorAsync(
+                                player,
+                                game.PartidaId,
+                                penaltyCard));
+                    }
                 }
 
-                if (game.IsFinished)
+                if (game.IsFinished && game.Winner != null)
                 {
-                    return Accept(
-                        "Jugada aceptada. ¡Tenemos un ganador!");
+                    await TryRegisterAsync(() =>
+                        _pythonApi.RegistrarVictoriaEnServidorAsync(
+                            game.Winner,
+                            game.PartidaId));
                 }
+
+                string message = game.IsFinished
+                    ? $"¡{game.Winner?.Name} ganó la partida!"
+                    : "Carta jugada correctamente.";
 
                 if (game.LastUnoPenaltyApplied)
                 {
-                    return Accept(
-                        $"Olvidaste decir UNO. " +
-                        $"Recibiste {game.LastUnoPenaltyCards.Count} cartas de castigo.");
+                    message +=
+                        $" Olvidaste decir UNO y recibiste " +
+                        $"{game.LastUnoPenaltyCards.Count} cartas de castigo.";
                 }
 
-                return Accept("Carta jugada correctamente.");
+                return Accept(message);
             }
 
-            // Robar una carta
-            
+            // Robar carta
 
             case "draw_card":
             {
@@ -69,16 +100,22 @@ public class GameService
                     player,
                     out Card? drawnCard);
 
-                if (!accepted)
+                if (!accepted || drawnCard == null)
                 {
                     return Reject(
                         "No puedes robar una carta en este momento.");
                 }
 
+                await TryRegisterAsync(() =>
+                    _pythonApi.RegistrarRoboEnServidorAsync(
+                        player,
+                        game.PartidaId,
+                        drawnCard));
+
                 return Accept("Carta robada correctamente.");
             }
 
-            // Tomar penalizacion
+            // Resolver penalizacion
 
             case "resolve_penalty":
             {
@@ -89,14 +126,18 @@ public class GameService
                 if (!accepted)
                 {
                     return Reject(
-                        "No puedes tomar una penalización en este momento.");
+                        "No puedes resolver una penalización.");
                 }
 
+                await TryRegisterAsync(() =>
+                    _pythonApi.RegistrarPenalizacionEnServidorAsync(
+                        player,
+                        game.PartidaId));
+
                 return Accept(
-                    $"Has robado {drawnCards.Count} cartas de penalización.");
+                    $"Has robado {drawnCards.Count} cartas.");
             }
 
-            
             // Pasar turno
 
             case "pass_turn":
@@ -109,17 +150,31 @@ public class GameService
                         "No puedes pasar el turno en este momento.");
                 }
 
-                if (game.IsFinished)
+                await TryRegisterAsync(() =>
+                    _pythonApi.RegistrarPaseDeTurnoEnServidorAsync(
+                        player,
+                        game.PartidaId));
+
+                if (game.IsFinished && game.Winner != null)
                 {
-                    return Accept(
-                        "Todos los jugadores pasaron. " +
-                        "La partida terminó por puntuación.");
+                    await TryRegisterAsync(() =>
+                        _pythonApi.RegistrarMazoAgotadoAsync(
+                            game.Winner,
+                            game.PartidaId));
+
+                    await TryRegisterAsync(() =>
+                        _pythonApi.RegistrarVictoriaEnServidorAsync(
+                            game.Winner,
+                            game.PartidaId));
                 }
 
-                return Accept("Turno pasado correctamente.");
+                return Accept(
+                    game.IsFinished
+                        ? $"Partida terminada. Ganador: {game.Winner?.Name}"
+                        : "Turno pasado correctamente.");
             }
 
-            // Declarar uno
+            // Decir UNO
 
             case "shout_uno":
             {
@@ -131,32 +186,49 @@ public class GameService
                         "No puedes declarar UNO en este momento.");
                 }
 
-                return Accept(
-                    $"{player.Name} ha declarado UNO.");
-            }
+                await TryRegisterAsync(() =>
+                    _pythonApi.RegistrarUnoAsync(
+                        player,
+                        game.PartidaId,
+                        true));
 
-            
-            //Por si no coincide ninguna solicitud
+                return Accept($"{player.Name} ha dicho UNO.");
+            }
 
             default:
 
-                return Reject(
-                    "No se reconoce el tipo de solicitud.");
+                return Reject("Acción desconocida.");
         }
     }
 
-    private ActionResult Accept(string message)
+    // Registro sin afectar la partida
+
+    private static async Task TryRegisterAsync(
+        Func<Task> registerAction)
     {
-        return new ActionResult
+        try
+        {
+            await registerAction();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(
+                $"No se pudo registrar en Python: {ex.Message}");
+        }
+    }
+
+    private static ActionResultMessage Accept(string message)
+    {
+        return new ActionResultMessage
         {
             Accepted = true,
             Message = message
         };
     }
 
-    private ActionResult Reject(string message)
+    private static ActionResultMessage Reject(string message)
     {
-        return new ActionResult
+        return new ActionResultMessage
         {
             Accepted = false,
             Message = message
