@@ -13,7 +13,9 @@ public class TcpServer
 
     private readonly GameManager _gameManager;
 
-    public TcpServer(GameManager gameManager, int port)
+    public TcpServer(
+        GameManager gameManager,
+        int port)
     {
         _gameManager = gameManager;
 
@@ -22,23 +24,17 @@ public class TcpServer
             port);
     }
 
-    // Iniciar el servidor
     public async Task RunAsync(
         CancellationToken cancellationToken)
     {
         _listener.Start();
 
-        Console.WriteLine(
-            "================================");
+        Console.WriteLine("================================");
+        Console.WriteLine("       SERVIDOR UNO INICIADO");
+        Console.WriteLine("================================");
 
         Console.WriteLine(
-            "       SERVIDOR UNO INICIADO");
-
-        Console.WriteLine(
-            "================================");
-
-        Console.WriteLine(
-            $"Escuchando en el puerto {_listener.LocalEndpoint}");
+            $"Puerto: {((IPEndPoint)_listener.LocalEndpoint).Port}");
 
         try
         {
@@ -48,8 +44,15 @@ public class TcpServer
 
                 try
                 {
-                    // Esperar una nueva conexión.
-                    tcpClient = await _listener.AcceptTcpClientAsync();
+                    tcpClient = await _listener
+                        .AcceptTcpClientAsync()
+                        .WaitAsync(cancellationToken);
+
+                    tcpClient.NoDelay = true;
+                }
+                catch (OperationCanceledException)
+                {
+                    break;
                 }
                 catch (SocketException)
                     when (cancellationToken.IsCancellationRequested)
@@ -63,8 +66,8 @@ public class TcpServer
                 }
 
                 Console.WriteLine(
-                    $"Nueva conexión desde: {tcpClient.Client.RemoteEndPoint}");
-                
+                    $"Conexión desde {tcpClient.Client.RemoteEndPoint}");
+
                 _ = HandleClientAsync(
                     tcpClient,
                     cancellationToken);
@@ -74,12 +77,9 @@ public class TcpServer
         {
             _listener.Stop();
 
-            Console.WriteLine(
-                "Servidor detenido.");
+            Console.WriteLine("Servidor detenido.");
         }
     }
-
-    //Se atiende a un cliente
 
     private async Task HandleClientAsync(
         TcpClient tcpClient,
@@ -97,11 +97,9 @@ public class TcpServer
         catch (Exception ex)
         {
             Console.WriteLine(
-                $"Error atendiendo conexión: {ex.Message}");
+                $"Error de cliente: {ex.Message}");
         }
     }
-
-    //Se detiene el servidor
 
     public void Stop()
     {

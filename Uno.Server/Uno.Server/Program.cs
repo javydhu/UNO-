@@ -1,51 +1,91 @@
 ﻿using System;
+using System.Net;
+using System.Net.NetworkInformation;
+using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
+
 using Uno.Server.Networking;
 using Uno.Server.Services;
 
-// Configuracion de cuantos jugadores se necesitan y que puerto se utilizara
+
 
 const int PORT = 5000;
 
 const int PLAYERS_TO_START = 3;
 
-// Creacion de los servicios 
 
 
-GameManager gameManager = new GameManager(
-    PLAYERS_TO_START);
+string pythonUrl =
+    Environment.GetEnvironmentVariable("UNO_PYTHON_API_URL")
+    ?? "http://127.0.0.1:8000/";
 
-TcpServer server = new TcpServer(
-    gameManager,
-    PORT);
+using HttpClient httpClient = new HttpClient
+{
+    BaseAddress = new Uri(pythonUrl),
+    Timeout = TimeSpan.FromSeconds(8)
+};
+
+PythonApiService pythonApi =
+    new PythonApiService(httpClient);
 
 
-// Control de cierre
+GameManager gameManager =
+    new GameManager(
+        pythonApi,
+        PLAYERS_TO_START);
 
-using CancellationTokenSource cancellationTokenSource = new();
+
+TcpServer server =
+    new TcpServer(
+        gameManager,
+        PORT);
+
+//Mostrar ip locales
+
+Console.WriteLine("Direcciones IPv4 disponibles:");
+
+foreach (NetworkInterface networkInterface
+         in NetworkInterface.GetAllNetworkInterfaces())
+{
+    if (networkInterface.OperationalStatus !=
+        OperationalStatus.Up)
+        continue;
+
+    foreach (UnicastIPAddressInformation address
+             in networkInterface.GetIPProperties().UnicastAddresses)
+    {
+        if (address.Address.AddressFamily ==
+            AddressFamily.InterNetwork &&
+            !IPAddress.IsLoopback(address.Address))
+        {
+            Console.WriteLine(address.Address);
+        }
+    }
+}
+
+
+using CancellationTokenSource cts = new();
 
 Console.CancelKeyPress += (sender, eventArgs) =>
 {
     eventArgs.Cancel = true;
 
-    Console.WriteLine(
-        "\nCerrando servidor...");
+    Console.WriteLine("\nCerrando servidor...");
 
-    cancellationTokenSource.Cancel();
+    cts.Cancel();
 
     server.Stop();
 };
 
+// Iniciar
 
-// Iniciar servidor
 try
 {
-    await server.RunAsync(
-        cancellationTokenSource.Token);
+    await server.RunAsync(cts.Token);
 }
 catch (Exception ex)
 {
     Console.WriteLine(
-        $"Error en el servidor: {ex.Message}");
+        $"Error iniciando servidor: {ex.Message}");
 }
