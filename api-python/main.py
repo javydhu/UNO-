@@ -5,6 +5,7 @@ from typing import List
 from pydantic import BaseModel, Field
 
 
+
 #depends nos ayuda a hacer inyeccion de dependencias,
 #es para que fastapi gestione la apertura y el cierre de 
 #la conexion que tenemos a la base de datos que esta en
@@ -451,7 +452,10 @@ def unirse_a_partida(
     }
 
 @app.post("/partida/uno")
-def registrar_uno(datos: AccionDijoUno, db: Session = Depends(get_db)):
+def registrar_uno(
+    datos: AccionDijoUno,
+    db: Session = Depends(get_db)
+):
     jugador = db.query(models.Jugador).filter(models.Jugador.id == datos.jugador_id).first()
     if not jugador:
         return {"error": "Jugador no encontrado"}
