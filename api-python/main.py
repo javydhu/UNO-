@@ -65,34 +65,90 @@ class JugadaRequest(BaseModel):
 
 #Ahora siguen los endpoints
 
+def obtener_o_crear_jugador(nombre: str, db: Session):
 
-@app.post("/jugadores/") #Se le indica donde esta el endpoint
-#se crea una funcion que va a recibir lo que se le haga de peticion
-#Lo que se hace es que por ejemplo jugador es un objeto de la clase
-#que se acaba de crear arriba, como hereda de BaseModel, entoces
-#cada que se hace un objeto de esta clase checa que el JSON que se le
-#manda concuerde con los datos que ocupa la clase
-def crear_jugador(jugador: JugadorCreate, db: Session = Depends(get_db)):
-    #se igualan los valores de las cosas
-  db_jugador = models.Jugador(nombre=jugador.nombre)
-  #Se agrega como nuevo dato de la tabla
-  db.add(db_jugador)
-  #Se guarda como nuevo dato de la tabla
-  db.commit()
-  #se hace para poder tener el dato mas reciente de ese 
-  #jugador
-  db.refresh(db_jugador)
-  #se regresa el jugador 
-  return db_jugador
+    nombre = nombre.strip()
 
+    if not nombre:
+        raise HTTPException(
+            status_code=400,
+            detail="El nombre no puede estar vacío."
+        )
+
+    # Buscar ignorando mayúsculas, minúsculas
+    jugador = (
+        db.query(models.Jugador)
+        .filter(
+            func.lower(func.trim(models.Jugador.nombre))
+            == nombre.lower()
+        )
+        .first()
+    )
+
+    # Si ya existe, devolverlo.
+    if jugador:
+        return {
+            "id": jugador.id,
+            "nombre": jugador.nombre,
+            "partidas_ganadas": jugador.partidas_ganadas
+        }
+
+    # Si no existe, crearlo.
+    nuevo_jugador = models.Jugador(
+        nombre=nombre,
+        partidas_ganadas=0
+    )
+
+    db.add(nuevo_jugador)
+    db.commit()
+    db.refresh(nuevo_jugador)
+
+    return {
+        "id": nuevo_jugador.id,
+        "nombre": nuevo_jugador.nombre,
+        "partidas_ganadas": nuevo_jugador.partidas_ganadas
+    }
+
+
+# Crear o recuperar un jugador.
+
+@app.post("/jugadores/")
+def crear_jugador(
+    datos: JugadorCreate,
+    db: Session = Depends(get_db)
+):
+    return obtener_o_crear_jugador(datos.nombre, db)
+
+
+@app.post("/jugadores/login")
+def registrar_jugador(
+    datos: JugadorCreate,
+    db: Session = Depends(get_db)
+):
+    return obtener_o_crear_jugador(datos.nombre, db)
+
+
+# Consultar todos los jugadores registrados.
 
 @app.get("/jugadores/")
-def obtener_jugadores(db: Session = Depends(get_db)):
-  return db.query(models.Jugador).all()
-  
-# La variable db que es una sesion que se la va a pedir con una
-#dependencia con lo que hicimos en la base de datos de get_db
-#es la que nos ayuda a hacer las cosas como los commit, query o add
+def obtener_jugadores(
+    db: Session = Depends(get_db)
+):
+    jugadores = (
+        db.query(models.Jugador)
+        .order_by(models.Jugador.nombre)
+        .all()
+    )
+
+    return [
+        {
+            "id": jugador.id,
+            "nombre": jugador.nombre,
+            "partidas_ganadas": jugador.partidas_ganadas
+        }
+        for jugador in jugadores
+    ]
+    
 @app.post("/movimientos/")
 def registrar_movimiento(
     movimiento: MovimientoCreate, db: Session = Depends(get_db)
@@ -114,28 +170,7 @@ def obtener_log_partida(partida_id: int, db: Session = Depends(get_db)):
       .filter(models.LogMovimiento.partida_id == partida_id)
       .all()
   )
-  
-@app.post("/jugadores/login")
-def resgistrar_jugador(datos: JugadorCreate, db: Session = Depends(get_db)):
-    jugador_existente = db.query(models.Jugador).filter(models.Jugador.nombre == datos.nombre).first()
-    if jugador_existente:
-        # Retornamos un diccionario plano en lugar del objeto SQLAlchemy
-        return {
-            "id": jugador_existente.id,
-            "nombre": jugador_existente.nombre,
-            "partidas_ganadas": jugador_existente.partidas_ganadas
-        }
-    
-    nuevo_jugador = models.Jugador(nombre=datos.nombre, partidas_ganadas=0)
-    db.add(nuevo_jugador)
-    db.commit()
-    db.refresh(nuevo_jugador)
-   
-    return {
-        "id": nuevo_jugador.id,
-        "nombre": nuevo_jugador.nombre,
-        "partidas_ganadas": nuevo_jugador.partidas_ganadas
-    }
+ 
   
 @app.post("/partida/robar-carta")
 def registrar_robo(datos: JugadorRoba, db: Session = Depends(get_db)):
@@ -242,7 +277,7 @@ def registrar_victoria(datos: AccionJugadorRequest, db: Session = Depends(get_db
            "partida_id": partida.id,
            "ganador_id": partida.ganador_id,
            "partidas ganadas": jugador.partidas_ganadas
-    }
+    } 
 
 @app.post("/partida/nueva")
 def iniciar_nueva_partida(db: Session = Depends(get_db)):
