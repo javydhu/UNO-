@@ -7,22 +7,36 @@ namespace Uno.Shared.Models;
 public class UnoGame
 {
     public List<Player> Players { get; private set; } = new();
+
     public List<Card> DrawPile { get; private set; } = new();
+
     public List<Card> DiscardPile { get; private set; } = new();
 
     public int CurrentPlayerIndex { get; private set; } = 0;
+
     public int Direction { get; private set; } = 1;
+
     public CardColor ActiveColor { get; private set; }
+
     public int PendingDrawCards { get; private set; } = 0;
+
+    public int ConsecutivePasses { get; private set; } = 0;
+
     public int PartidaId { get; }
 
     public bool IsStarted { get; private set; } = false;
+
     public bool IsFinished { get; private set; } = false;
 
     public Player? Winner { get; private set; }
+    public bool HasShoutedUno { get; private set; } = false;
+    
+    public bool? LastUnoDecision { get; private set; }
+    public bool LastUnoPenaltyApplied { get; private set; } = false;
 
-    public bool HasDrawnThisTurn { get; private set; } = false;
-    private Guid? DrawnCardThisTurnId { get; set; }
+    public int? LastUnoPenaltyPlayerId { get; private set; }
+
+    public List<Card> LastUnoPenaltyCards { get; private set; } = new();
     public Card TopCard
     {
         get
@@ -34,6 +48,7 @@ public class UnoGame
             return DiscardPile[^1];
         }
     }
+
     public Player CurrentPlayer
     {
         get
@@ -46,7 +61,6 @@ public class UnoGame
         }
     }
 
-    
     public UnoGame(List<Player> players, int id)
     {
         ArgumentNullException.ThrowIfNull(players);
@@ -55,18 +69,21 @@ public class UnoGame
             throw new ArgumentException(
                 "Una partida debe tener entre 2 y 10 jugadores.");
 
+        if (players.Any(p => p == null))
+            throw new ArgumentException(
+                "La lista contiene jugadores inválidos.");
+
         if (players.Select(p => p.Id).Distinct().Count() != players.Count)
             throw new ArgumentException(
                 "No puede haber jugadores con identificadores repetidos.");
 
         Players = players.ToList();
+
         PartidaId = id;
 
         InitializeDeck();
     }
-
-    // INICIALIZACIÓN DEL MAZO
-
+    
     private void InitializeDeck()
     {
         DrawPile.Clear();
@@ -76,12 +93,9 @@ public class UnoGame
         {
             if (color == CardColor.Wild)
                 continue;
-
-            // Un cero por color.
             DrawPile.Add(new Card(color, CardValue.Zero));
 
-            // Dos cartas de cada valor del 1 al 9
-            // y dos de cada carta especial.
+            
             for (int i = 0; i < 2; i++)
             {
                 foreach (CardValue value in Enum.GetValues(typeof(CardValue)))
@@ -97,7 +111,7 @@ public class UnoGame
                 }
             }
         }
-
+        
         for (int i = 0; i < 4; i++)
         {
             DrawPile.Add(new Card(CardColor.Wild, CardValue.Wild));
@@ -120,37 +134,38 @@ public class UnoGame
         {
             int j = Random.Shared.Next(i + 1);
 
-            (DrawPile[i], DrawPile[j]) = (DrawPile[j], DrawPile[i]);
+            (DrawPile[i], DrawPile[j]) =
+                (DrawPile[j], DrawPile[i]);
         }
     }
-
-    // INICIAR PARTIDA
 
     public void StartGame()
     {
         if (IsStarted)
             throw new InvalidOperationException(
-                "La partida ya ha sido iniciada.");
+                "La partida ya fue iniciada.");
 
-        // Reiniciar el estado de los jugadores.
         foreach (Player player in Players)
         {
             player.Hand.Clear();
         }
 
-        DiscardPile.Clear();
-
         CurrentPlayerIndex = 0;
         Direction = 1;
+
         PendingDrawCards = 0;
+        ConsecutivePasses = 0;
 
         Winner = null;
         IsFinished = false;
 
-        HasDrawnThisTurn = false;
-        DrawnCardThisTurnId = null;
+        HasShoutedUno = false;
 
-        // Repartir siete cartas a cada jugador.
+        LastUnoDecision = null;
+        LastUnoPenaltyApplied = false;
+        LastUnoPenaltyPlayerId = null;
+        LastUnoPenaltyCards.Clear();
+
         foreach (Player player in Players)
         {
             for (int i = 0; i < 7; i++)
@@ -161,8 +176,7 @@ public class UnoGame
                     player.Hand.Add(drawn);
             }
         }
-
-        // La carta inicial será numérica.
+        
         Card firstCard;
 
         do
@@ -171,39 +185,88 @@ public class UnoGame
                 ?? throw new InvalidOperationException(
                     "No hay cartas suficientes para iniciar la partida.");
 
-            if (firstCard.Color == CardColor.Wild ||
-                !IsNumberCard(firstCard.Value))
-            {
-                DrawPile.Add(firstCard);
-                Shuffle();
-            }
+            DiscardPile.Add(firstCard);
 
-        } while (firstCard.Color == CardColor.Wild ||
-                 !IsNumberCard(firstCard.Value));
-
-        DiscardPile.Add(firstCard);
+        } while (firstCard.Color == CardColor.Wild);
 
         ActiveColor = firstCard.Color;
 
         IsStarted = true;
     }
+    
 
-    private bool IsNumberCard(CardValue value)
+    private Player? FindCurrentPlayer(Player player)
     {
-        return value is CardValue.Zero
-            or CardValue.One
-            or CardValue.Two
-            or CardValue.Three
-            or CardValue.Four
-            or CardValue.Five
-            or CardValue.Six
-            or CardValue.Seven
-            or CardValue.Eight
-            or CardValue.Nine;
+        if (!IsStarted || IsFinished || player == null)
+            return null;
+
+        Player? registeredPlayer = Players.FirstOrDefault(
+            p => p.Id == player.Id);
+
+        if (registeredPlayer == null)
+            return null;
+
+        if (registeredPlayer.Id != CurrentPlayer.Id)
+            return null;
+
+        return registeredPlayer;
     }
+    
 
-    // ROBAR CARTAS
+    public bool CanPlayCard(Player player, Card card)
+    {
+        if (player == null || card == null)
+            return false;
 
+        Player? actualPlayer = FindCurrentPlayer(player);
+
+        if (actualPlayer == null)
+            return false;
+
+        Card? ownedCard = actualPlayer.Hand.FirstOrDefault(
+            c => c.Id == card.Id);
+
+        if (ownedCard == null)
+            return false;
+
+        if (PendingDrawCards > 0)
+        {
+            return ownedCard.Value == CardValue.DrawTwo ||
+                   ownedCard.Value == CardValue.WildDrawFour;
+        }
+
+        return ownedCard.CanPlayOn(TopCard, ActiveColor);
+    }
+    
+
+    public bool CanShoutUno(Player player)
+    {
+        if (HasShoutedUno)
+            return false;
+
+        Player? actualPlayer = FindCurrentPlayer(player);
+
+        if (actualPlayer == null)
+            return false;
+
+        // Debe tener exactamente dos cartas.
+        if (actualPlayer.Hand.Count != 2)
+            return false;
+
+        // Al menos una de sus cartas debe ser jugable.
+        return actualPlayer.Hand.Any(card =>
+            CanPlayCard(actualPlayer, card));
+    }
+    
+    public bool ShoutUno(Player player)
+    {
+        if (!CanShoutUno(player))
+            return false;
+
+        HasShoutedUno = true;
+
+        return true;
+    }
     private Card? DrawCardFromPile()
     {
         if (DrawPile.Count == 0)
@@ -219,20 +282,15 @@ public class UnoGame
     {
         drawnCard = null;
 
-        if (!IsStarted || IsFinished || player == null)
+        Player? actualPlayer = FindCurrentPlayer(player);
+
+        if (actualPlayer == null)
             return false;
 
-        if (PendingDrawCards > 0 || HasDrawnThisTurn)
+        // No puede robar normalmente si tiene
+        // una penalización pendiente.
+        if (PendingDrawCards > 0)
             return false;
-
-        Player? actualPlayer = Players.FirstOrDefault(
-            p => p.Id == player.Id);
-
-        if (actualPlayer == null ||
-            actualPlayer.Id != CurrentPlayer.Id)
-        {
-            return false;
-        }
 
         drawnCard = DrawCardFromPile();
 
@@ -241,102 +299,43 @@ public class UnoGame
 
         actualPlayer.Hand.Add(drawnCard);
 
-        HasDrawnThisTurn = true;
-        DrawnCardThisTurnId = drawnCard.Id;
-
         return true;
     }
-    public bool ResolvePendingDraws(
-        Player player,
-        out List<Card> drawnCards)
-    {
-        drawnCards = new List<Card>();
 
-        if (!IsStarted || IsFinished ||
-            player == null || PendingDrawCards <= 0)
-        {
-            return false;
-        }
-
-        Player? actualPlayer = Players.FirstOrDefault(
-            p => p.Id == player.Id);
-
-        if (actualPlayer == null ||
-            actualPlayer.Id != CurrentPlayer.Id)
-        {
-            return false;
-        }
-        
-        for (int i = 0; i < PendingDrawCards; i++)
-        {
-            Card? drawn = DrawCardFromPile();
-
-            if (drawn == null)
-                break;
-
-            actualPlayer.Hand.Add(drawn);
-            drawnCards.Add(drawn);
-        }
-
-        PendingDrawCards = 0;
-
-        HasDrawnThisTurn = false;
-        DrawnCardThisTurnId = null;
-        
-        AdvanceTurn();
-
-        return true;
-    }
-    
-    public bool ResolvePendingDraws(Player player)
-    {
-        return ResolvePendingDraws(player, out _);
-    }
-
-    // JUGAR CARTAS
+    // Jugar cartas
 
     public bool PlayCard(
         Player player,
         Card card,
         CardColor? chosenColor = null)
     {
-        if (!IsStarted || IsFinished ||
-            player == null || card == null)
-        {
+        LastUnoDecision = null;
+
+        LastUnoPenaltyApplied = false;
+
+        LastUnoPenaltyPlayerId = null;
+
+        LastUnoPenaltyCards.Clear();
+
+        Player? actualPlayer = FindCurrentPlayer(player);
+
+        if (actualPlayer == null || card == null)
             return false;
-        }
 
-        // Buscar al jugador real dentro de la partida.
-        Player? actualPlayer = Players.FirstOrDefault(
-            p => p.Id == player.Id);
-
-        if (actualPlayer == null ||
-            actualPlayer.Id != CurrentPlayer.Id)
-        {
-            return false;
-        }
-
-        // Buscar la carta real dentro de su mano.
         Card? ownedCard = actualPlayer.Hand.FirstOrDefault(
             c => c.Id == card.Id);
 
         if (ownedCard == null)
             return false;
 
-        // Si ya robó una carta durante este turno,
-        if (HasDrawnThisTurn &&
-            ownedCard.Id != DrawnCardThisTurnId)
-        {
-            return false;
-        }
-
+        // Validar el color elegido.
         if (ownedCard.Color == CardColor.Wild)
         {
-            if (!chosenColor.HasValue ||
-                chosenColor.Value == CardColor.Wild ||
-                !Enum.IsDefined(
-                    typeof(CardColor),
-                    chosenColor.Value))
+            if (chosenColor == CardColor.Wild)
+                return false;
+
+            if (chosenColor.HasValue &&
+                !Enum.IsDefined(typeof(CardColor), chosenColor.Value))
             {
                 return false;
             }
@@ -346,121 +345,189 @@ public class UnoGame
             return false;
         }
 
-        // Validación de penalizaciones acumuladas.
-        if (PendingDrawCards > 0)
+        // Validar si la carta se puede jugar.
+        if (!CanPlayCard(actualPlayer, ownedCard))
+            return false;
+
+        int cardsBeforePlay = actualPlayer.Hand.Count;
+
+        if (cardsBeforePlay == 2)
         {
-            if (ownedCard.Value != CardValue.DrawTwo &&
-                ownedCard.Value != CardValue.WildDrawFour)
+            LastUnoDecision = HasShoutedUno;
+
+            if (!HasShoutedUno)
             {
-                return false;
+                LastUnoPenaltyApplied = true;
+
+                LastUnoPenaltyPlayerId = actualPlayer.Id;
             }
         }
-        else if (!ownedCard.CanPlayOn(TopCard, ActiveColor))
-        {
-            return false;
-        }
 
-        // Jugada valida
-        
+        // Eliminar la carta de la mano.
         actualPlayer.Hand.Remove(ownedCard);
 
         DiscardPile.Add(ownedCard);
+        ConsecutivePasses = 0;
+        
+        HasShoutedUno = false;
 
-        HasDrawnThisTurn = false;
-        DrawnCardThisTurnId = null;
-
-        // Determinar el color activo.
+        // Cambiar el color activo.
         ActiveColor = ownedCard.Color == CardColor.Wild
-            ? chosenColor!.Value
+            ? (chosenColor ?? CardColor.Red)
             : ownedCard.Color;
-
-        // Aplicar el efecto de la carta.
-        bool skipNextPlayer = false;
-
+        
         switch (ownedCard.Value)
         {
             case CardValue.DrawTwo:
 
                 PendingDrawCards += 2;
+
                 break;
 
             case CardValue.WildDrawFour:
 
                 PendingDrawCards += 4;
+
                 break;
 
             case CardValue.Skip:
 
-                skipNextPlayer = true;
+                // Saltar al siguiente jugador.
+                AdvanceTurn();
+
                 break;
 
             case CardValue.Reverse:
 
+                // Cambiar dirección.
                 Direction *= -1;
-                
-                if (Players.Count == 2)
-                    skipNextPlayer = true;
 
                 break;
         }
 
-        // Comprobar si el jugador ganó.
+        // Pasar al siguiente turno.
+        AdvanceTurn();
+        
+
+        if (cardsBeforePlay == 2 && !LastUnoDecision.Value)
+        {
+            for (int i = 0; i < 2; i++)
+            {
+                Card? penaltyCard = DrawCardFromPile();
+
+                if (penaltyCard == null)
+                    break;
+
+                actualPlayer.Hand.Add(penaltyCard);
+
+                LastUnoPenaltyCards.Add(penaltyCard);
+            }
+        }
+        
+
         if (actualPlayer.Hand.Count == 0)
         {
             Winner = actualPlayer;
+
             IsFinished = true;
+        }
+
+        return true;
+    }
+    
+
+    public bool ResolvePendingDraws(
+        Player player,
+        out List<Card> drawnCards)
+    {
+        drawnCards = new List<Card>();
+
+        Player? actualPlayer = FindCurrentPlayer(player);
+
+        if (actualPlayer == null || PendingDrawCards <= 0)
+            return false;
+
+        // Robar las cartas acumuladas.
+        for (int i = 0; i < PendingDrawCards; i++)
+        {
+            Card? drawn = DrawCardFromPile();
+
+            if (drawn == null)
+                break;
+
+            actualPlayer.Hand.Add(drawn);
+
+            drawnCards.Add(drawn);
+        }
+
+        // Reiniciar penalización.
+        PendingDrawCards = 0;
+
+        // Reiniciar estado de UNO.
+        HasShoutedUno = false;
+
+        // El jugador pierde su turno.
+        AdvanceTurn();
+
+        return true;
+    }
+    public bool ResolvePendingDraws(Player player)
+    {
+        return ResolvePendingDraws(player, out _);
+    }
+
+    public bool CanPassTurn()
+    {
+        return IsStarted &&
+               !IsFinished &&
+               DrawPile.Count == 0 &&
+               PendingDrawCards == 0;
+    }
+
+    public bool PassTurn(Player player)
+    {
+        Player? actualPlayer = FindCurrentPlayer(player);
+
+        if (actualPlayer == null || !CanPassTurn())
+            return false;
+
+        // Aumentar pases consecutivos.
+        ConsecutivePasses++;
+
+        // Reiniciar estado de UNO.
+        HasShoutedUno = false;
+
+        // Si todos pasaron, terminar por puntuación.
+        if (ConsecutivePasses >= Players.Count)
+        {
+            FinishGameByPoints();
 
             return true;
         }
 
-        // Aplicar los cambios de turno.
-        if (skipNextPlayer)
-            AdvanceTurn();
-
+        // Pasar al siguiente jugador.
         AdvanceTurn();
 
         return true;
     }
-
-    // PASAR TURNO
-
-    public bool PassTurn(Player player)
-    {
-        if (!IsStarted || IsFinished ||
-            player == null || !HasDrawnThisTurn)
-        {
-            return false;
-        }
-
-        Player? actualPlayer = Players.FirstOrDefault(
-            p => p.Id == player.Id);
-
-        if (actualPlayer == null ||
-            actualPlayer.Id != CurrentPlayer.Id)
-        {
-            return false;
-        }
-
-        Card? drawnCard = actualPlayer.Hand.FirstOrDefault(
-            c => c.Id == DrawnCardThisTurnId);
-
-        if (drawnCard == null)
-            return false;
-
-        // Si la carta robada se puede jugar,
-        if (drawnCard.CanPlayOn(TopCard, ActiveColor))
-            return false;
-
-        HasDrawnThisTurn = false;
-        DrawnCardThisTurnId = null;
-
-        AdvanceTurn();
-
-        return true;
-    }
-
     
-    // CAMBIO DE TURNO
+
+    private void FinishGameByPoints()
+    {
+        var scores = Players
+            .Select(player => new
+            {
+                Player = player,
+                Score = CalculatePlayerPoints(player)
+            })
+            .OrderBy(x => x.Score)
+            .ToList();
+
+        Winner = scores.First().Player;
+
+        IsFinished = true;
+    }
+    
 
     private void AdvanceTurn()
     {
@@ -468,8 +535,6 @@ public class UnoGame
             (CurrentPlayerIndex + Direction + Players.Count)
             % Players.Count;
     }
-
-    // SISTEMA DE PUNTUACIÓN
 
     public int CalculatePlayerPoints(Player player)
     {
@@ -489,14 +554,7 @@ public class UnoGame
                 CardValue.Seven => 7,
                 CardValue.Eight => 8,
                 CardValue.Nine => 9,
-
-                CardValue.Skip => 20,
-                CardValue.Reverse => 20,
-                CardValue.DrawTwo => 20,
-
-                CardValue.Wild => 50,
-                CardValue.WildDrawFour => 50,
-
+                
                 _ => 0
             };
         }
