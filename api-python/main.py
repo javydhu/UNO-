@@ -256,8 +256,20 @@ def registrar_victoria(datos: AccionJugadorRequest, db: Session = Depends(get_db
     partida = db.query(models.Partida).filter(models.Partida.id == datos.partida_id).first()
     if not partida:
         return {"error": "Partida no encontrada"}
-
+        
     partida.ganador_id = datos.jugador_id
+    
+    if partida.ganador_id is not None:
+    
+        if partida.ganador_id == jugador.id:
+            return {
+                "mensaje": "La victoria ya había sido registrada."
+            }
+    
+        raise HTTPException(
+            status_code=409,
+            detail="Esta partida ya tiene un ganador."
+        )
     jugador.partidas_ganadas += 1
     
     db_mov = models.LogMovimiento(
@@ -280,44 +292,67 @@ def registrar_victoria(datos: AccionJugadorRequest, db: Session = Depends(get_db
     } 
 
 @app.post("/partida/nueva")
-def iniciar_nueva_partida(db: Session = Depends(get_db)):
-    # 1. Se crea la partida (ya no recibe jugador_id directamente)
+def iniciar_nueva_partida(
+    db: Session = Depends(get_db)
+):
+
     nueva_partida = models.Partida()
+
     db.add(nueva_partida)
     db.commit()
-    db.refresh(nueva_partida) # Obtenemos el ID generado de la partida
-    
-    # 2. Vinculamos al anfitrión (jugador 1) usando la nueva tabla intermedia
-    nuevo_vinculo = models.JugadorPartida(
-        jugador_id=1,
-        partida_id=nueva_partida.id
-    )
-    db.add(nuevo_vinculo)
-    db.commit()
-    
-    return {"partida_id": nueva_partida.id}
+    db.refresh(nueva_partida)
+
+    return {
+        "partida_id": nueva_partida.id
+    }
 
 @app.post("/partida/unirse")
-def unirse_a_partida(datos: AccionJugadorRequest, db: Session = Depends(get_db)):
-    # Verificamos si el jugador y la partida existen
-    jugador = db.query(models.Jugador).filter(models.Jugador.id == datos.jugador_id).first()
-    partida = db.query(models.Partida).filter(models.Partida.id == datos.partida_id).first()
-    
+def unirse_a_partida(
+    datos: AccionJugadorRequest,
+    db: Session = Depends(get_db)
+):
+    # Existe el jugador.
+    jugador = (
+        db.query(models.Jugador)
+        .filter(models.Jugador.id == datos.jugador_id)
+        .first()
+    )
+    # Comprobar que existe la partida.
+    partida = (
+        db.query(models.Partida)
+        .filter(models.Partida.id == datos.partida_id)
+        .first()
+    )
     if not jugador or not partida:
-        return {"error": "Jugador o Partida no encontrados"}
-        
-    # Registramos al jugador en la tabla intermedia
+        raise HTTPException(
+            status_code=404,
+            detail="Jugador o partida no encontrados."
+        )
+    vinculo = (
+        db.query(models.JugadorPartida)
+        .filter(
+            models.JugadorPartida.jugador_id == datos.jugador_id,
+            models.JugadorPartida.partida_id == datos.partida_id
+        )
+        .first()
+    )
+    if vinculo:
+        return {
+            "mensaje": "El jugador ya pertenece a esta partida."
+        }
+    # Crear asociación.
     nuevo_vinculo = models.JugadorPartida(
         jugador_id=datos.jugador_id,
         partida_id=datos.partida_id
     )
     db.add(nuevo_vinculo)
     db.commit()
-    
-    return {"mensaje": f"El jugador {jugador.nombre} se unió a la partida {partida.id}"}
+    return {
+        "mensaje": f"El jugador {jugador.nombre} se unió a la partida {partida.id}"
+    }
 
 @app.post("/partida/uno")
-def registrar_victoria(datos: AccionDijoUno, db: Session = Depends(get_db)):
+def registrar_uno(datos: AccionDijoUno, db: Session = Depends(get_db)):
     jugador = db.query(models.Jugador).filter(models.Jugador.id == datos.jugador_id).first()
     if not jugador:
         return {"error": "Jugador no encontrado"}
