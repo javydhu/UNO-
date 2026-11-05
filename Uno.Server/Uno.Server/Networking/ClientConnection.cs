@@ -12,12 +12,9 @@ namespace Uno.Server.Networking;
 public class ClientConnection : IDisposable
 {
     private readonly TcpClient _client;
-
     private readonly StreamReader _reader;
-
     private readonly StreamWriter _writer;
 
-    //Gracias a esto no se pueden escribir dos mensajes al mismo tiempo 
     private readonly SemaphoreSlim _sendLock = new(1, 1);
 
     public ClientConnection(TcpClient client)
@@ -38,25 +35,45 @@ public class ClientConnection : IDisposable
         };
     }
 
-    // Mensajes recibidos
-
-    public async Task<NetworkMessage?> ReadMessageAsync()
+    public async Task<NetworkMessage?> ReadMessageAsync(
+        CancellationToken cancellationToken = default)
     {
-        string? line = await _reader.ReadLineAsync();
+        while (!cancellationToken.IsCancellationRequested)
+        {
+            string? line;
 
-        if (string.IsNullOrWhiteSpace(line))
-            return null;
+            try
+            {
+                line = await _reader.ReadLineAsync()
+                    .WaitAsync(cancellationToken);
+            }
+            catch (IOException)
+            {
+                return null;
+            }
+            catch (ObjectDisposedException)
+            {
+                return null;
+            }
 
-        return JsonSerializer.Deserialize<NetworkMessage>(
-            line,
-            NetworkMessage.SerializerOptions);
+            if (line == null)
+                return null;
+
+            if (string.IsNullOrWhiteSpace(line))
+                continue;
+
+            return JsonSerializer.Deserialize<NetworkMessage>(
+                line,
+                NetworkMessage.SerializerOptions);
+        }
+
+        return null;
     }
-
-    //Envio de mensajes
 
     public async Task SendMessageAsync<T>(
         string type,
-        T data)
+        T data,
+        CancellationToken cancellationToken = default)
     {
         NetworkMessage message = NetworkMessage.Create(
             type,
@@ -66,13 +83,12 @@ public class ClientConnection : IDisposable
             message,
             NetworkMessage.SerializerOptions);
 
-        await _sendLock.WaitAsync();
+        await _sendLock.WaitAsync(cancellationToken);
 
         try
         {
             await _writer.WriteLineAsync(json);
-
-            await _writer.FlushAsync();
+            await _writer.FlushAsync(cancellationToken);
         }
         finally
         {
@@ -80,16 +96,9 @@ public class ClientConnection : IDisposable
         }
     }
 
-    // Creacion de conexion
-
     public void Dispose()
     {
-        _writer.Dispose();
-
-        _reader.Dispose();
-
         _client.Dispose();
-
         _sendLock.Dispose();
     }
 }
