@@ -5,7 +5,7 @@
         x:Class="Uno.Views.MainWindow"
         x:DataType="vm:MainViewModel"
         x:Name="root"
-        Title="Juego UNO - 3 Jugadores"
+        Title="UNO - Multijugador"
         WindowState="Maximized"
         CanResize="False">
 
@@ -14,22 +14,246 @@
 	</Window.Resources>
 
 	<Grid>
-		<!-- Menu Principal -->
-		<Grid IsVisible="{Binding !IsGameStarted}">
-			<Image Source="avares://Uno/Assets/background1.png" Stretch="UniformToFill" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-			<Button Content="¡ JUGAR !"
-			        Command="{Binding StartGame}"
-			        Padding="45,18"
-			        FontSize="30"
-			        FontWeight="Bold"
-			        Background="#E74C3C"
-			        Foreground="White"
-			        CornerRadius="16"
-			        HorizontalAlignment="Center"
-			        VerticalAlignment="Bottom"
-			        Margin="0,0,0,120"
-			        Cursor="Hand"/>
-		</Grid>
+		<!-- ================================= -->
+<!-- PANTALLA DE CONEXIÓN -->
+<!-- ================================= -->
+
+<Grid IsVisible="{Binding IsConnectionScreenVisible}">
+
+    <Image Source="avares://Uno/Assets/background1.png"
+           Stretch="UniformToFill"/>
+
+    <Border Background="#DD1E1E1E"
+            CornerRadius="20"
+            Padding="45"
+            Width="480"
+            HorizontalAlignment="Center"
+            VerticalAlignment="Center">
+
+        <StackPanel Spacing="18">
+
+            <TextBlock Text="UNO"
+                       FontSize="42"
+                       FontWeight="Bold"
+                       Foreground="#FFD700"
+                       HorizontalAlignment="Center"/>
+
+            <TextBlock Text="Conectarse al servidor"
+                       Foreground="White"
+                       FontSize="22"
+                       HorizontalAlignment="Center"/>
+
+            <TextBlock Text="Dirección IP"
+                       Foreground="White"
+                       FontWeight="Bold"/>
+
+            <TextBox Text="{Binding ServerIp}"
+                     Watermark="Ej. 192.168.1.45"
+                     FontSize="18"
+                     Padding="12"/>
+
+            <TextBlock Text="Puerto"
+                       Foreground="White"
+                       FontWeight="Bold"/>
+
+            <TextBox Text="{Binding ServerPort}"
+                     Watermark="5000"
+                     FontSize="18"
+                     Padding="12"/>
+
+            <Button Content="CONECTAR"
+                    Command="{Binding ConnectCommand}"
+                    Padding="20"
+                    Background="#27AE60"
+                    Foreground="White"
+                    FontWeight="Bold"
+                    FontSize="20"
+                    CornerRadius="10"
+                    Cursor="Hand"/>
+
+            <TextBlock Text="{Binding StatusMessage}"
+                       Foreground="#F1C40F"
+                       TextWrapping="Wrap"
+                       HorizontalAlignment="Center"/>
+
+        </StackPanel>
+    </Border>
+</Grid>
+		
+		<!-- ================================= -->
+<!-- SELECCIÓN DE JUGADOR -->
+<!-- ================================= -->
+
+<Grid IsVisible="{Binding IsPlayerSelectionVisible}">
+
+    <Image Source="avares://Uno/Assets/background1.png"
+           Stretch="UniformToFill"/>
+
+    <Border Background="#DD1E1E1E"
+            CornerRadius="20"
+            Padding="40"
+            Width="520"
+            HorizontalAlignment="Center"
+            VerticalAlignment="Center">
+
+        <StackPanel Spacing="18">
+
+            <TextBlock Text="SELECCIONAR JUGADOR"
+                       Foreground="#FFD700"
+                       FontSize="28"
+                       FontWeight="Bold"
+                       HorizontalAlignment="Center"/>
+
+            <TextBlock Text="Jugadores registrados:"
+                       Foreground="White"
+                       FontSize="16"/>
+
+            <ComboBox ItemsSource="{Binding RegisteredPlayers}"
+                      SelectedItem="{Binding SelectedRegisteredPlayer}"
+                      HorizontalAlignment="Stretch"
+                      FontSize="17"
+                      PlaceholderText="Selecciona un jugador">
+
+                <ComboBox.ItemTemplate>
+                    <DataTemplate x:CompileBindings="False">
+                        <TextBlock Text="{Binding Nombre}"/>
+                    </DataTemplate>
+                </ComboBox.ItemTemplate>
+
+            </ComboBox>
+
+            <Button Content="UTILIZAR JUGADOR"
+                    Command="{Binding JoinSelectedPlayerCommand}"
+                    Background="#3498DB"
+                    Foreground="White"
+                    FontWeight="Bold"
+                    Padding="15"
+                    CornerRadius="8"
+                    Cursor="Hand"/>
+
+            <Border Height="1"
+                    Background="#888888"
+                    Margin="0,10"/>
+
+            <TextBlock Text="¿Eres un jugador nuevo?"
+                       Foreground="White"
+                       FontWeight="Bold"/>
+
+            <TextBox Text="{Binding NewPlayerName}"
+                     Watermark="Escribe tu nombre"
+                     FontSize="17"
+                     Padding="12"/>
+
+            <Button Content="REGISTRAR Y ENTRAR"
+                    Command="{Binding RegisterNewPlayerCommand}"
+                    Background="#27AE60"
+                    Foreground="White"
+                    FontWeight="Bold"
+                    Padding="15"
+                    CornerRadius="8"
+                    Cursor="Hand"/>
+
+            <TextBlock Text="{Binding StatusMessage}"
+                       Foreground="#F1C40F"
+                       TextWrapping="Wrap"
+                       HorizontalAlignment="Center"/>
+
+        </StackPanel>
+    </Border>
+</Grid>
+		
+		<!-- ================================= -->
+<!-- SALA DE ESPERA -->
+<!-- ================================= -->
+
+<Grid IsVisible="{Binding IsWaitingRoomVisible}">
+
+    <Image Source="avares://Uno/Assets/background1.png"
+           Stretch="UniformToFill"/>
+
+    <Border Background="#DD1E1E1E"
+            CornerRadius="20"
+            Padding="40"
+            Width="550"
+            HorizontalAlignment="Center"
+            VerticalAlignment="Center">
+
+        <StackPanel Spacing="20">
+
+            <TextBlock Text="SALA DE ESPERA"
+                       Foreground="#FFD700"
+                       FontSize="30"
+                       FontWeight="Bold"
+                       HorizontalAlignment="Center"/>
+
+            <TextBlock Text="{Binding WaitingRoomCountText}"
+                       Foreground="White"
+                       FontSize="26"
+                       FontWeight="Bold"
+                       HorizontalAlignment="Center"/>
+
+            <Border Height="1"
+                    Background="#888888"/>
+
+            <TextBlock Text="Jugadores conectados:"
+                       Foreground="White"
+                       FontSize="18"
+                       FontWeight="Bold"/>
+
+            <ItemsControl ItemsSource="{Binding WaitingRoomPlayers}">
+
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:CompileBindings="False">
+
+                        <Border Background="#333333"
+                                CornerRadius="8"
+                                Padding="12"
+                                Margin="0,5">
+
+                            <StackPanel Orientation="Horizontal"
+                                        Spacing="12">
+
+                                <TextBlock Text="●"
+                                           Foreground="#2ECC71"
+                                           FontSize="20"/>
+
+                                <TextBlock Text="{Binding Name}"
+                                           Foreground="White"
+                                           FontSize="18"
+                                           VerticalAlignment="Center"/>
+
+                            </StackPanel>
+
+                        </Border>
+
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+
+            </ItemsControl>
+
+            <TextBlock Text="Esperando a que se conecten los demás jugadores..."
+                       Foreground="#F1C40F"
+                       TextAlignment="Center"
+                       TextWrapping="Wrap"
+                       FontSize="15"/>
+
+            <Button Content="CANCELAR Y SALIR"
+                    Command="{Binding CancelWaitingCommand}"
+                    Background="#E74C3C"
+                    Foreground="White"
+                    FontWeight="Bold"
+                    Padding="15"
+                    CornerRadius="8"
+                    Cursor="Hand"/>
+
+            <TextBlock Text="{Binding StatusMessage}"
+                       Foreground="White"
+                       TextWrapping="Wrap"
+                       HorizontalAlignment="Center"/>
+
+        </StackPanel>
+    </Border>
+</Grid>
 
 		<!-- Tablero de juego -->
 		<Grid IsVisible="{Binding IsGameStarted}" RowDefinitions="Auto, *">
@@ -42,8 +266,8 @@
 					<TextBlock Text="{Binding StatusMessage}" Foreground="White" FontSize="20" FontWeight="Bold" HorizontalAlignment="Center"/>
 				</Border>
 
-				<!-- NUEVO: Botón de Opciones (Alineado a la izquierda) -->
-				<Button Command="{Binding TogglePauseMenu}"
+				<!-- Botón de opciones -->
+				<Button Command="{Binding TogglePauseMenuCommand}"
 				        Background="Transparent"
 				        Padding="15,10"
 				        HorizontalAlignment="Left"
@@ -61,30 +285,24 @@
 			<!-- Tablero principal -->
 			<Grid Grid.Row="1" ColumnDefinitions="250, *, 250" RowDefinitions="*, Auto">
 
-				<!-- Mano izquierda (90°) -->
+				<!-- Rival izquierdo: únicamente información pública -->
 				<Border Grid.Column="0" Grid.Row="0" Background="#88000000" Padding="10" Margin="10" CornerRadius="8" VerticalAlignment="Center" RenderTransformOrigin="50%,50%">
 					<Border.RenderTransform>
 						<RotateTransform Angle="90"/>
 					</Border.RenderTransform>
-					<StackPanel>
-						<TextBlock Text="{Binding LeftPlayer.Name, StringFormat='Mano de {0}'}" Foreground="#FFD700" FontWeight="Bold" FontSize="16" HorizontalAlignment="Center" Margin="0,0,0,5"/>
-						<ScrollViewer HorizontalScrollBarVisibility="Hidden" 
-						              VerticalScrollBarVisibility="Disabled" 
-						              MaxWidth="300"
-						              PointerWheelChanged="OnHandPointerWheelChanged">
-							<ItemsControl ItemsSource="{Binding LeftPlayer.Hand}">
-								<ItemsControl.ItemsPanel>
-									<ItemsPanelTemplate>
-										<StackPanel Orientation="Horizontal" Spacing="8"/>
-									</ItemsPanelTemplate>
-								</ItemsControl.ItemsPanel>
-								<ItemsControl.ItemTemplate>
-									<DataTemplate>
-										<Image Source="{Binding ImagePath, Converter={StaticResource VariableImageConverter}}" Width="65" Height="100"/>
-									</DataTemplate>
-								</ItemsControl.ItemTemplate>
-							</ItemsControl>
-						</ScrollViewer>
+					<StackPanel Spacing="12">
+
+						<TextBlock Text="{Binding LeftPlayer.Name, StringFormat='Jugador: {0}'}"
+						           Foreground="#FFD700"
+						           FontWeight="Bold"
+						           FontSize="18"
+						           HorizontalAlignment="Center"/>
+
+						<TextBlock Text="{Binding LeftPlayer.HandCount, StringFormat='Cartas: {0}'}"
+						           Foreground="White"
+						           FontSize="16"
+						           HorizontalAlignment="Center"/>
+
 					</StackPanel>
 				</Border>
 
@@ -101,7 +319,7 @@
 						<!-- Mazo -->
 						<StackPanel HorizontalAlignment="Center">
 							<TextBlock Text=" " Foreground="Transparent" FontSize="16" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,8"/>
-							<Button Command="{Binding DrawCard}" 
+							<Button Command="{Binding DrawCardCommand}" 
 							        Background="Transparent" 
 							        Padding="0" 
 							        BorderThickness="0" 
@@ -125,7 +343,7 @@
                         
 						<!-- DECIR UNO -->
 						<Button Content="¡ UNO !"
-						        Command="{Binding ShoutUno}"
+						        Command="{Binding ShoutUnoCommand}"
 						        IsVisible="{Binding CanShoutUno}"
 						        Padding="30,10"
 						        Background="#F39C12"
@@ -135,7 +353,7 @@
 						        Cursor="Hand"/>
 
 						<Button Content="Pasar Turno"
-						        Command="{Binding PassTurn}"
+						        Command="{Binding PassTurnCommand}"
 						        IsVisible="{Binding CanPassTurn}"
 						        Padding="20,10"
 						        Background="#7F8C8D"
@@ -145,7 +363,7 @@
 						        Cursor="Hand"/>
 
 						<Button Content="{Binding PenaltyButtonText}"
-						        Command="{Binding TakePenalty}"
+						        Command="{Binding TakePenaltyCommand}"
 						        IsVisible="{Binding HasPendingDraws}"
 						        Padding="20,10"
 						        Background="#E74C3C"
@@ -156,37 +374,31 @@
 					</StackPanel>
 				</StackPanel>
 
-				<!-- Mano derecha (-90°) -->
+				<!-- Rival derecho: únicamente información pública -->
 				<Border Grid.Column="2" Grid.Row="0" Background="#88000000" Padding="10" Margin="10" CornerRadius="8" VerticalAlignment="Center" RenderTransformOrigin="50%,50%">
 					<Border.RenderTransform>
 						<RotateTransform Angle="-90"/>
 					</Border.RenderTransform>
-					<StackPanel>
-						<TextBlock Text="{Binding RightPlayer.Name, StringFormat='Mano de {0}'}" Foreground="#FFD700" FontWeight="Bold" FontSize="16" HorizontalAlignment="Center" Margin="0,0,0,5"/>
-						<ScrollViewer HorizontalScrollBarVisibility="Hidden" 
-						              VerticalScrollBarVisibility="Disabled" 
-						              MaxWidth="300"
-						              PointerWheelChanged="OnHandPointerWheelChanged">
-							<ItemsControl ItemsSource="{Binding RightPlayer.Hand}">
-								<ItemsControl.ItemsPanel>
-									<ItemsPanelTemplate>
-										<StackPanel Orientation="Horizontal" Spacing="8"/>
-									</ItemsPanelTemplate>
-								</ItemsControl.ItemsPanel>
-								<ItemsControl.ItemTemplate>
-									<DataTemplate>
-										<Image Source="{Binding ImagePath, Converter={StaticResource VariableImageConverter}}" Width="65" Height="100"/>
-									</DataTemplate>
-								</ItemsControl.ItemTemplate>
-							</ItemsControl>
-						</ScrollViewer>
+					<StackPanel Spacing="12">
+
+						<TextBlock Text="{Binding RightPlayer.Name, StringFormat='Jugador: {0}'}"
+						           Foreground="#FFD700"
+						           FontWeight="Bold"
+						           FontSize="18"
+						           HorizontalAlignment="Center"/>
+
+						<TextBlock Text="{Binding RightPlayer.HandCount, StringFormat='Cartas: {0}'}"
+						           Foreground="White"
+						           FontSize="16"
+						           HorizontalAlignment="Center"/>
+
 					</StackPanel>
 				</Border>
 
-				<!-- Mano del jugador en turno (ABAJO) -->
+				<!-- Mano privada del jugador local (ABAJO) -->
 				<Border Grid.Column="0" Grid.ColumnSpan="3" Grid.Row="1" Background="#DD111111" Padding="20, 40" Margin="0,10,0,0">
 					<StackPanel HorizontalAlignment="Center">
-						<TextBlock Text="{Binding BottomPlayer.Name, StringFormat='TU TURNO: {0}'}" Foreground="#3498DB" FontWeight="Bold" FontSize="20" HorizontalAlignment="Center" Margin="0,0,0,8"/>
+						<TextBlock Text="{Binding BottomPlayerLabel}" Foreground="#3498DB" FontWeight="Bold" FontSize="20" HorizontalAlignment="Center" Margin="0,0,0,8"/>
 						<ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
 							<ItemsControl ItemsSource="{Binding BottomPlayer.Hand}">
 								<ItemsControl.ItemsPanel>
@@ -195,9 +407,10 @@
 									</ItemsPanelTemplate>
 								</ItemsControl.ItemsPanel>
 								<ItemsControl.ItemTemplate>
-									<DataTemplate DataType="models:Card">
+									<DataTemplate DataType="models:Card" x:DataType="models:Card">
 									
-										<Button Command="{Binding OnCardClicked}" 
+										<Button Command="{Binding $parent[Window].((vm:MainViewModel)DataContext).PlayCardCommand}"
+										        CommandParameter="{Binding}" 
 										        Background="Transparent"
 										        Margin="0, 15"
 										        Padding="0" 
@@ -256,28 +469,28 @@
 					<TextBlock Text="¡ELIGE UN COLOR!" Foreground="White" FontSize="26" FontWeight="Bold" HorizontalAlignment="Center"/>
 
 					<WrapPanel Width="280" Height="280" HorizontalAlignment="Center" VerticalAlignment="Center">
-						<Button Command="{Binding SelectColor}" CommandParameter="Red"
+						<Button Command="{Binding SelectColorCommand}" CommandParameter="Red"
 						        Width="120" Height="120" Margin="10"
 						        Background="#E74C3C" Foreground="White"
 						        FontSize="18" FontWeight="Bold"
 						        Content="ROJO" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
 						        CornerRadius="12" Cursor="Hand" IsHitTestVisible="True"/>
 
-						<Button Command="{Binding SelectColor}" CommandParameter="Yellow"
+						<Button Command="{Binding SelectColorCommand}" CommandParameter="Yellow"
 						        Width="120" Height="120" Margin="10"
 						        Background="#F1C40F" Foreground="Black"
 						        FontSize="18" FontWeight="Bold"
 						        Content="AMARILLO" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
 						        CornerRadius="12" Cursor="Hand" IsHitTestVisible="True"/>
 
-						<Button Command="{Binding SelectColor}" CommandParameter="Blue"
+						<Button Command="{Binding SelectColorCommand}" CommandParameter="Blue"
 						        Width="120" Height="120" Margin="10"
 						        Background="#3498DB" Foreground="White"
 						        FontSize="18" FontWeight="Bold"
 						        Content="AZUL" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
 						        CornerRadius="12" Cursor="Hand" IsHitTestVisible="True"/>
 
-						<Button Command="{Binding SelectColor}" CommandParameter="Green"
+						<Button Command="{Binding SelectColorCommand}" CommandParameter="Green"
 						        Width="120" Height="120" Margin="10"
 						        Background="#2ECC71" Foreground="White"
 						        FontSize="18" FontWeight="Bold"
@@ -296,8 +509,8 @@
 					<TextBlock Text="{Binding WinnerName, StringFormat='¡GANADOR: {0}!'}" Foreground="White" FontSize="24" FontWeight="Bold" HorizontalAlignment="Center"/>
 					<TextBlock Text="{Binding GameOverDetails}" Foreground="#CCCCCC" FontSize="18" HorizontalAlignment="Center" TextAlignment="Center"/>
 
-					<Button Content="Nueva Partida"
-					        Command="{Binding StartGame}"
+					<Button Content="VOLVER AL INICIO"
+					        Command="{Binding ExitToMenuCommand}"
 					        Padding="30,12"
 					        FontSize="20"
 					        FontWeight="Bold"
@@ -328,7 +541,7 @@
                     <TextBlock Text="MENÚ DE OPCIONES" Foreground="White" FontSize="22" FontWeight="Bold" HorizontalAlignment="Center"/>
 
                     <Button Content="Reanudar Partida"
-                            Command="{Binding TogglePauseMenu}"
+                            Command="{Binding TogglePauseMenuCommand}"
                             Padding="15"
                             FontSize="16"
                             FontWeight="Bold"
@@ -339,20 +552,8 @@
                             HorizontalContentAlignment="Center"
                             Cursor="Hand"/>
 
-                    <Button Content="Reiniciar"
-                            Command="{Binding RestartGame}"
-                            Padding="15"
-                            FontSize="16"
-                            FontWeight="Bold"
-                            Background="#E67E22"
-                            Foreground="White"
-                            CornerRadius="8"
-                            HorizontalAlignment="Stretch"
-                            HorizontalContentAlignment="Center"
-                            Cursor="Hand"/>
-
-                    <Button Content="Salir"
-                            Command="{Binding QuitToMainMenu}"
+                    <Button Content="Salir al inicio"
+                            Command="{Binding ExitToMenuCommand}"
                             Padding="15"
                             FontSize="16"
                             FontWeight="Bold"

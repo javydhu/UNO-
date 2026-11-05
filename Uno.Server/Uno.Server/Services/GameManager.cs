@@ -264,9 +264,28 @@ public class GameManager
             }
 
             // Recuperar o registrar al jugador en Python.
-            RegisteredPlayerDto registeredPlayer =
-                await _pythonApi.ObtenerOCrearJugadorAsync(
-                    request.Name);
+            RegisteredPlayerDto registeredPlayer;
+
+            try
+            {
+                registeredPlayer =
+                    await _pythonApi.ObtenerOCrearJugadorAsync(
+                        request.Name);
+            }
+            catch (Exception ex)
+            {
+                await connection.SendMessageAsync(
+                    "join_result",
+                    new JoinResult
+                    {
+                        Accepted = false,
+                        Message = $"No se pudo identificar al jugador: {ex.Message}",
+                        ConnectedPlayers = _clients.Count,
+                        RequiredPlayers = _playersToStart
+                    });
+
+                return null;
+            }
 
             // Evitar que un jugador tenga dos conexiones
             bool alreadyConnected = _clients.Any(

@@ -246,8 +246,8 @@ public class MainViewModel : ViewModelBase
 
     public bool CanShoutUno =>
         IsMyTurn &&
-        BottomPlayer?.Hand.Count == 2 &&
-        BottomPlayer.Hand.Any(card => card.IsPlayable) &&
+        BottomPlayer is { Hand.Count: 2 } bottom &&
+        bottom.Hand.Any(card => card.IsPlayable) &&
         !_hasShoutedUno;
 
     public string PenaltyButtonText =>
@@ -393,7 +393,23 @@ public class MainViewModel : ViewModelBase
                         cancellationToken);
 
                 if (message == null)
+                {
+                    if (!cancellationToken.IsCancellationRequested)
+                    {
+                        Dispatcher.UIThread.Post(() =>
+                        {
+                            StatusMessage = "Se perdió la conexión con el servidor.";
+
+                            IsGameStarted = false;
+                            IsGameOver = false;
+                            IsWaitingRoomVisible = false;
+                            IsPlayerSelectionVisible = false;
+                            IsConnectionScreenVisible = true;
+                        });
+                    }
+
                     break;
+                }
                 Dispatcher.UIThread.Post(
                     () => HandleServerMessage(message));
             }
@@ -916,7 +932,7 @@ public class MainViewModel : ViewModelBase
     {
         if (_receiveCancellation != null)
         {
-            await _receiveCancellation.CancelAsync();
+            _receiveCancellation.Cancel();
             _receiveCancellation.Dispose();
             _receiveCancellation = null;
         }

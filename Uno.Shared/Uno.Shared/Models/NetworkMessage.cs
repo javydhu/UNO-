@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text.Json.Serialization;
 
 namespace Uno.Shared.Models;
 
@@ -43,10 +44,13 @@ public class NetworkMessage
 
 public class RegisteredPlayerDto
 {
+    [JsonPropertyName("id")]
     public int Id { get; set; }
 
+    [JsonPropertyName("nombre")]
     public string Nombre { get; set; } = string.Empty;
 
+    [JsonPropertyName("partidas_ganadas")]
     public int PartidasGanadas { get; set; }
 }
 
