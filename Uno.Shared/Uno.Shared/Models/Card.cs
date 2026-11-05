@@ -1,7 +1,7 @@
 ﻿using System;
 using Uno;
 
-namespace Uno.Models;
+namespace Uno.Shared.Models;
 
 public enum CardColor { Red, Yellow, Green, Blue, Wild }
 public enum CardValue { Zero, One, Two, Three, Four, Five, Six, Seven, Eight, Nine, Skip, Reverse, DrawTwo, Wild, WildDrawFour }
@@ -11,9 +11,8 @@ public class Card
     public CardColor Color { get; set; }
     public CardValue Value { get; set; }
 
-    // Propiedad que indica si la carta es válida para jugarse ahorita
-    private bool IsPlayable;
-   
+    // Propiedad que indica si la carta es válida para jugarse 
+    public bool IsPlayable { get; set; }   
     public Action<Card>? PlayAction { get; set; }
 
     public Card(CardColor color, CardValue value)

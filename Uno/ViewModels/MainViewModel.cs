@@ -2,7 +2,7 @@ using System;
 using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
-using Uno.Models;
+using Uno.Shared.Models;
 using Uno.Services;
 using System.Collections.Generic;
 

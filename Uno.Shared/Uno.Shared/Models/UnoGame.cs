@@ -3,13 +3,13 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
 using Uno;
-using Uno.Models;
+using Uno.Shared.Models;
 using System.Threading.Tasks;
 
 using System.Collections.Generic;
 using System.Reflection.Metadata.Ecma335;
 
-namespace Uno.Models;
+namespace Uno.Shared.Models;
 
 public class UnoGame
 {

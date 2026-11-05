@@ -6,7 +6,7 @@ using Uno;
 using System.Threading.Tasks;
 using System.Collections.ObjectModel;
 
-namespace Uno.Models;
+namespace Uno.Shared.Models;
     
 public class Player
 {
