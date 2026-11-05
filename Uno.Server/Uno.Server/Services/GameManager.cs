@@ -155,6 +155,8 @@ public class GameManager
 
             if (!joinResult.Accepted)
                 return;
+            if (connectedClient == null)
+                return;
 
             // Actualizar a los clientes
             await _gameLock.WaitAsync(cancellationToken);
