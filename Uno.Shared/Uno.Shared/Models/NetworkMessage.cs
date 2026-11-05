@@ -31,8 +31,8 @@ public class NetworkMessage
 
     public T? GetData<T>()
     {
-        if (Data.ValueKind == JsonValueKind.Undefined ||
-            Data.ValueKind == JsonValueKind.Null)
+        if (Data.ValueKind is JsonValueKind.Undefined
+            or JsonValueKind.Null)
         {
             return default;
         }
@@ -41,23 +41,26 @@ public class NetworkMessage
     }
 }
 
-//Solicitud de clientes
+public class RegisteredPlayerDto
+{
+    public int Id { get; set; }
 
-// Primer mensaje que envía un cliente
+    public string Nombre { get; set; } = string.Empty;
+
+    public int PartidasGanadas { get; set; }
+}
+
 public class JoinRequest
 {
     public string Name { get; set; } = string.Empty;
 }
 
-// Solicitud para jugar una carta.
 public class PlayCardRequest
 {
     public Guid CardId { get; set; }
 
     public CardColor? ChosenColor { get; set; }
 }
-
-//Respuesta del servidor
 
 public class JoinResult
 {
@@ -74,7 +77,7 @@ public class JoinResult
     public bool GameStarted { get; set; }
 }
 
-public class ActionResult
+public class ActionResultMessage
 {
     public bool Accepted { get; set; }
 
@@ -82,7 +85,15 @@ public class ActionResult
 }
 
 
-// Información pública de cada jugador.
+public class WaitingRoomSnapshot
+{
+    public int ConnectedPlayers { get; set; }
+
+    public int RequiredPlayers { get; set; }
+
+    public List<PlayerPublicState> Players { get; set; } = new();
+}
+
 public class PlayerPublicState
 {
     public int Id { get; set; }
@@ -90,21 +101,24 @@ public class PlayerPublicState
     public string Name { get; set; } = string.Empty;
 
     public int HandCount { get; set; }
+
+    public bool IsConnected { get; set; } = true;
 }
-
-// ESTADO DE LA PARTIDA
-
 public class GameStateSnapshot
 {
     public int PartidaId { get; set; }
 
     public int CurrentPlayerId { get; set; }
 
+    public int Direction { get; set; }
+
     public Card TopCard { get; set; } = null!;
 
     public CardColor ActiveColor { get; set; }
 
     public int PendingDrawCards { get; set; }
+
+    public int ConsecutivePasses { get; set; }
 
     public int DrawPileCount { get; set; }
 
@@ -117,6 +131,5 @@ public class GameStateSnapshot
     public string? WinnerName { get; set; }
 
     public List<PlayerPublicState> Players { get; set; } = new();
-    
     public List<Card> YourHand { get; set; } = new();
 }
