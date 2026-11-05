@@ -1,6 +1,11 @@
 from database import Base #Se importa la base que es una clase que extiende de base de datos relacional
-from sqlalchemy import Column, Integer, String, ForeignKey
-from sqlalchemy import UniqueConstraint
+from sqlalchemy import (
+    Column,
+    Integer,
+    String,
+    ForeignKey,
+    UniqueConstraint
+)
 
 #Se integran los datos para poder usarlos como 
 #tipos de datos en el codigo
@@ -60,7 +65,12 @@ class JugadorPartida(Base):
         ),
     )
 
-    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    id = Column(
+        Integer,
+        primary_key=True,
+        index=True,
+        autoincrement=True
+    )
 
     jugador_id = Column(
         Integer,
@@ -74,6 +84,12 @@ class JugadorPartida(Base):
         nullable=False
     )
 
-    jugador = relationship("Jugador", back_populates="participaciones")
+    jugador = relationship(
+        "Jugador",
+        back_populates="participaciones"
+    )
 
-    partida = relationship("Partida", back_populates="jugadores")
+    partida = relationship(
+        "Partida",
+        back_populates="jugadores"
+    )

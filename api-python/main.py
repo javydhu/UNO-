@@ -1,6 +1,9 @@
 #Es la que se encarga de la conexion principal que es engine
 #y la que nos deja hacer las consultas temporales con get_db
 from database import engine, get_db
+from typing import List
+from pydantic import BaseModel, Field
+
 
 #depends nos ayuda a hacer inyeccion de dependencias,
 #es para que fastapi gestione la apertura y el cierre de 
@@ -40,6 +43,8 @@ class MovimientoCreate(BaseModel):
   jugador_id: int
   accion: str
   
+class NuevaPartidaRequest(BaseModel):
+    jugadores_ids: List[int] = Field(default_factory=list)
 
 class AccionJugadorRequest(BaseModel):
     jugador_id: int
@@ -125,7 +130,52 @@ def registrar_jugador(
     datos: JugadorCreate,
     db: Session = Depends(get_db)
 ):
-    return obtener_o_crear_jugador(datos.nombre, db)
+    nombre = datos.nombre.strip()
+
+    if not nombre:
+        raise HTTPException(
+            status_code=400,
+            detail="El nombre es obligatorio."
+        )
+
+    jugador_existente = (
+        db.query(models.Jugador)
+        .filter(
+            func.lower(func.trim(models.Jugador.nombre))
+            == nombre.lower()
+        )
+        .first()
+    )
+
+    if jugador_existente:
+        return {
+            "id": jugador_existente.id,
+            "nombre": jugador_existente.nombre,
+            "partidas_ganadas": jugador_existente.partidas_ganadas
+        }
+
+    nuevo_jugador = models.Jugador(
+        nombre=nombre,
+        partidas_ganadas=0
+    )
+
+    try:
+        db.add(nuevo_jugador)
+        db.commit()
+        db.refresh(nuevo_jugador)
+
+    except Exception:
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail="No se pudo registrar el jugador."
+        )
+
+    return {
+        "id": nuevo_jugador.id,
+        "nombre": nuevo_jugador.nombre,
+        "partidas_ganadas": nuevo_jugador.partidas_ganadas
+    }
 
 
 # Consultar todos los jugadores registrados.
@@ -293,19 +343,68 @@ def registrar_victoria(datos: AccionJugadorRequest, db: Session = Depends(get_db
 
 @app.post("/partida/nueva")
 def iniciar_nueva_partida(
+    datos: NuevaPartidaRequest | None = None,
     db: Session = Depends(get_db)
 ):
+    datos = datos or NuevaPartidaRequest()
 
-    nueva_partida = models.Partida()
+    ids = datos.jugadores_ids
 
-    db.add(nueva_partida)
-    db.commit()
-    db.refresh(nueva_partida)
+    # No aceptar identificadores repetidos.
+    if len(ids) != len(set(ids)):
+        raise HTTPException(
+            status_code=400,
+            detail="Hay jugadores repetidos."
+        )
 
-    return {
-        "partida_id": nueva_partida.id
-    }
+    # Comprobar que todos los jugadores existen.
+    jugadores = (
+        db.query(models.Jugador)
+        .filter(models.Jugador.id.in_(ids))
+        .all()
+        if ids else []
+    )
 
+    if len(jugadores) != len(ids):
+        raise HTTPException(
+            status_code=404,
+            detail="Uno o más jugadores no existen."
+        )
+
+    try:
+        nueva_partida = models.Partida()
+
+        db.add(nueva_partida)
+
+        # Obtener el ID antes de crear las asociaciones.
+        db.flush()
+
+        vinculos = [
+            models.JugadorPartida(
+                jugador_id=jugador_id,
+                partida_id=nueva_partida.id
+            )
+            for jugador_id in ids
+        ]
+
+        db.add_all(vinculos)
+
+        db.commit()
+
+        db.refresh(nueva_partida)
+
+        return {
+            "partida_id": nueva_partida.id,
+            "jugadores": ids
+        }
+
+    except Exception:
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail="No se pudo crear la partida."
+        )
+        
 @app.post("/partida/unirse")
 def unirse_a_partida(
     datos: AccionJugadorRequest,
