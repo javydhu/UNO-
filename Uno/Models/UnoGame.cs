@@ -6,27 +6,24 @@ using Uno.Services;
 using Uno.Models;
 using System.Threading.Tasks;
 
-using System.Collections.Generic;
-using System.Reflection.Metadata.Ecma335;
-
 namespace Uno.Models;
 
 public class UnoGame
 {
-    public List<Player> Players { get; private set; } = new();
-    public List<Card> DrawPile { get; private set; } = new();
-    public List<Card> DiscardPile { get; private set; } = new();
+    public List<Player> Jugadores { get; private set; } = new();
+    public List<Card> Pila { get; private set; } = new();
+    public List<Card> PilaJugada { get; private set; } = new();
 
-    public int CurrentPlayerIndex { get; private set; } = 0;
-    public int Direction { get; private set; } = 1;
-    public CardColor ActiveColor { get; set; }
+    public int actualJugadorIndex { get; private set; } = 0;
+    public int Direccion { get; private set; } = 1;
+    public CardColor ColorActual { get; set; }
 
-    public int PendingDrawCards { get; set; } = 0; 
-    public int ConsecutivePasses { get; set; } = 0;
-    public int partidaId = 1;
+    public int PilaPendiente { get; set; } = 0; 
+    public int PasesContinuos { get; set; } = 0;
+    public int partidaID = 1;
 
-    public Card TopCard => DiscardPile.LastOrDefault()!;
-    public Player CurrentPlayer => Players[CurrentPlayerIndex];
+    public Card TopCard => PilaJugada.LastOrDefault()!;
+    public Player actualJugador => Jugadores[actualJugadorIndex];
 
     public UnoGame()
     {
@@ -35,38 +32,38 @@ public class UnoGame
     }
     public UnoGame(List<Player> players, int id)
     {
-        partidaId = id;
-        Players = players;
+        partidaID = id;
+        Jugadores = players;
         InitializeDeck();
         StartGame();
     }
 
     private void InitializeDeck()
     {
-        DrawPile.Clear();
-        DiscardPile.Clear();
+        Pila.Clear();
+        PilaJugada.Clear();
         
         // 108 Cartas Exactas de UNO
         foreach (CardColor color in Enum.GetValues(typeof(CardColor)))
         {
             if (color == CardColor.Wild) continue;
 
-            DrawPile.Add(new Card(color, CardValue.Zero)); // 1 cero por color (4)
+            Pila.Add(new Card(color, CardValue.Zero)); // 1 cero por color (4)
 
             for (int i = 0; i < 2; i++) // 2 de cada una (1-9, Skip, Reverse, DrawTwo) (18 * 4 = 72)
             {
                 foreach (CardValue val in Enum.GetValues(typeof(CardValue)))
                 {
                     if (val == CardValue.Zero || val == CardValue.Wild || val == CardValue.WildDrawFour) continue;
-                    DrawPile.Add(new Card(color, val));
+                    Pila.Add(new Card(color, val));
                 }
             }
         }
 
         for (int i = 0; i < 4; i++) // 4 Comodines normales y 4 Comodines +4 (8)
         {
-            DrawPile.Add(new Card(CardColor.Wild, CardValue.Wild));
-            DrawPile.Add(new Card(CardColor.Wild, CardValue.WildDrawFour));
+            Pila.Add(new Card(CardColor.Wild, CardValue.Wild));
+            Pila.Add(new Card(CardColor.Wild, CardValue.WildDrawFour));
         }
 
         Shuffle();
@@ -75,114 +72,118 @@ public class UnoGame
     private void Shuffle()
     {
         Random rnd = new();
-        DrawPile = DrawPile.OrderBy(_ => rnd.Next()).ToList();
+        Pila = Pila.OrderBy(_ => rnd.Next()).ToList();
     }
 
     public void StartGame()
     {
-        foreach (var player in Players)
+        foreach (var player in Jugadores)
         {
             for (int i = 0; i < 7; i++)
             {
-                if (DrawPile.Count > 0)
+                if (Pila.Count > 0)
                 {
-                    //player.Hand.Add(DrawCardFromPile()!);
+                    
                     entregar_carta(player);
                 }
             }
         }
 
-        Card firstCard;
+        Card primeraCarta;
         do
         {
-            firstCard = DrawCardFromPile()!;
-            DiscardPile.Add(firstCard);
-        } while (firstCard.Color == CardColor.Wild);
+            primeraCarta = TomarCartaDePila()!;
+            PilaJugada.Add(primeraCarta);
+        } while (primeraCarta.Color == CardColor.Wild);
 
-        ActiveColor = firstCard.Color;
+        ColorActual = primeraCarta.Color;
     }
     
     public async void entregar_carta(Player player)
     {
-        Card card = DrawCardFromPile();
-        player.Hand.Add(DrawCardFromPile()!);
-        await RegistrarRoboEnServidor(player, card!);
+        
+        Card? card = TomarCartaDePila();
+        if (card == null)  return;
+        
+        player.Mano.Add(TomarCartaDePila()!);
+        await RegistrarRoboEnServidor(player, card);
     }
 
-    public Card? DrawCardFromPile()
+    public Card? TomarCartaDePila()
     {
-        if (DrawPile.Count == 0)
+        if (Pila.Count == 0)
         {
             return null; // Mazo agotado (sin rebarajear)
         }
 
-        Card drawn = DrawPile[0];
-        DrawPile.RemoveAt(0);
-        if (DrawPile.Count == 0){
-            Pilaacabo();
+        Card actualCarta = Pila[0];
+        Pila.RemoveAt(0);
+        if (Pila.Count == 0){
+            PilaTermino();
         }
 
-        return drawn;
+        return actualCarta;
     }
 
-    public bool PlayCard(Player player, Card card, CardColor? chosenColor = null)
+    public bool JugarCarta(Player jugador, Card carta, CardColor? actualColor = null)
     {
-        if (player != CurrentPlayer) return false;
+        if (jugador != actualJugador) return false;
+        if (!jugador.Mano.Contains(carta)) return false;
 
         // Regla de acumulación de +2 / +4
-        if (PendingDrawCards > 0)
+        if (PilaPendiente > 0)
         {
-            if (card.Value != CardValue.DrawTwo && card.Value != CardValue.WildDrawFour)
+            if (carta.Value != CardValue.DrawTwo && carta.Value != CardValue.WildDrawFour)
                 return false; // Si hay castigo acumulado, solo puede responder con +2 o +4
         }
-        else if (!card.CanPlayOn(TopCard, ActiveColor))
+        else if (!carta.Jugable(TopCard, ColorActual))
         {
             return false;
         }
 
-        player.Hand.Remove(card);
-        DiscardPile.Add(card);
-        ConsecutivePasses = 0; // Se resetea el contador de pases
+        jugador.Mano.Remove(carta);
+        PilaJugada.Add(carta);
+        PasesContinuos = 0; // Se resetea el contador de pases
 
-        ActiveColor = card.Color == CardColor.Wild ? (chosenColor ?? CardColor.Red) : card.Color;
+        ColorActual = carta.Color == CardColor.Wild ? (actualColor ?? CardColor.Red) : carta.Color;
 
-        switch (card.Value)
+        switch (carta.Value)
         {
             case CardValue.DrawTwo:
-                PendingDrawCards += 2;
+                PilaPendiente += 2;
                 break;
             case CardValue.WildDrawFour:
-                PendingDrawCards += 4;
+                PilaPendiente += 4;
                 break;
             case CardValue.Skip:
-                NextTurn();
+                SiguienteTurno();
                 break;
             case CardValue.Reverse:
-                Direction *= -1;
+                Direccion *= -1;
                 break;
         }
 
-        NextTurn();
+        SiguienteTurno();
         return true;
     }
 
-    public void ResolvePendingDraws(Player player)
+    public void ResuelveTomarPendientes(Player player)
     {
-        for (int i = 0; i < PendingDrawCards; i++)
+        for (int i = 0; i < PilaPendiente; i++)
         {
-            Card? drawn = DrawCardFromPile();
-            if (drawn != null) player.Hand.Add(drawn);
+            Card? actualCarta = TomarCartaDePila();
+            if (actualCarta != null) player.Mano.Add(actualCarta);
         }
-        PendingDrawCards = 0;
-        NextTurn();
+        PilaPendiente = 0;
+        SiguienteTurno();
     }
 
-    public int CalculatePlayerPoints(Player player)
+    public int CalcularPuntos(Player player)
     {
-        int score = 0;
-        foreach (var card in player.Hand)
+        int puntos = 0;
+        foreach (var carta in player.Mano)
         {
-            score += card.Value switch
+            puntos += carta.Value switch
             {
                 CardValue.Zero => 0,
                 CardValue.One => 1,
@@ -197,33 +198,27 @@ public class UnoGame
                 _ => 0 // Comodines y especiales valen 0
             };
         }
-        return score;
+        return puntos;
     }
 
-    public void NextTurn()
+    public void SiguienteTurno()
     {
-        CurrentPlayerIndex = (CurrentPlayerIndex + Direction + Players.Count) % Players.Count;
+        actualJugadorIndex = (actualJugadorIndex + Direccion + Jugadores.Count) % Jugadores.Count;
     }
     
     public async Task RegistrarRoboEnServidor(Player jugador, Card card)
     {
         ApiService api = new ApiService();
-        var datosRobo = new { jugador_id = jugador.Id, partida_id =  partidaId, color_carta= card.Color.ToString(), valor_carta =card.Value.ToString() };
-        string respuesta = await api.EnviarJugadaLog("/partida/robar-carta", datosRobo);
-    }
-    public async Task RegistrarMazoAgotado(Player jugador, Card card)
-    {
-        ApiService api = new ApiService();
-        var datosRobo = new { jugador_id = jugador.Id, partida_id =  partidaId, color_carta= card.Color.ToString(), valor_carta =card.Value.ToString() };
+        var datosRobo = new { jugador_id = jugador.ID, partida_id =  partidaID, color_carta= card.Color.ToString(), valor_carta =card.Value.ToString() };
         string respuesta = await api.EnviarJugadaLog("/partida/robar-carta", datosRobo);
     }
 
-    public async void Pilaacabo()
+    public async void PilaTermino()
     {
+        if (Jugadores.Count == 0) return;
         ApiService api = new ApiService();
-        var datosJugada = new { jugador_id = CurrentPlayer.Id, partida_id = partidaId };
+        var datosJugada = new { jugador_id = actualJugador.ID, partida_id = partidaID };
         string ans = await api.EnviarJugadaLog("/partida/sin-cartas", datosJugada);
         if (ans != null) Console.WriteLine("Acción registrada en el servidor correctamente.");
     }
-    
 }

@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using Uno.Models;
 using Uno.Services;
@@ -11,25 +12,29 @@ namespace Uno.ViewModels;
 public class MainViewModel : ViewModelBase
 {
     private UnoGame _game;
-    private string _statusMessage = string.Empty;
-    private bool _isGameStarted = false;
-    private bool _isColorPickerVisible = false;
-    private bool _isGameOver = false;
-    private string _winnerName = string.Empty;
+    private string _estatusMensaje = string.Empty;
+    private bool _JuegoIniciado = false;
+    private bool _ColorElegidoVisible = false;
+    private bool _JuegoTerminado = false;
+    private string _ganadorNombre = string.Empty;
     private string _gameOverDetails = string.Empty;
-    private Card? _pendingWildCard = null;
-    private int partidaId = 0;
-    private bool _hasShoutedUno = false;
-    private bool _isPauseMenuVisible = false;
+    private Card? _CartaWildPendiente = null;
+    private int partidaID = 0;
+    private bool _haDichoUno = false;
+    private bool _menuPausaVisible = false;
+    private bool _isProcessingPlay = false; 
+    private bool _isStartingGame = false;
 
     // El botón de UNO aparece solo si el jugador tiene 2 cartas, al menos una es jugable y aún no lo ha presionado
-    public bool CanShoutUno => Game.CurrentPlayer.Hand.Count == 2 
-                            && Game.CurrentPlayer.Hand.Any(c => c.IsPlayable) 
-                            && !_hasShoutedUno;
+    public bool CanShoutUno => Game.Jugadores.Count > 0
+                            && Game.actualJugador.Mano.Count == 2 
+                            && Game.actualJugador.Mano.Any(c => c.esJugable) 
+                            && !_haDichoUno;
     public class JugadorRespuesta
     {
-        public string Nombre { get; set; }
+        public string Nombre { get; set; } = string.Empty;
         public int Id { get; set; }
+        [JsonPropertyName("partidas_ganadas")]
         public int PartidasGanadas  { get; set; }
     }
 
@@ -41,34 +46,34 @@ public class MainViewModel : ViewModelBase
         set => SetProperty(ref _game, value);
     }
 
-    public string StatusMessage
+    public string EstatusMensaje
     {
-        get => _statusMessage;
-        set => SetProperty(ref _statusMessage, value);
+        get => _estatusMensaje;
+        set => SetProperty(ref _estatusMensaje, value);
     }
 
-    public bool IsGameStarted
+    public bool JuegoIniciado
     {
-        get => _isGameStarted;
-        set => SetProperty(ref _isGameStarted, value);
+        get => _JuegoIniciado;
+        set => SetProperty(ref _JuegoIniciado, value);
     }
 
-    public bool IsColorPickerVisible
+    public bool ColorElegidoVisible
     {
-        get => _isColorPickerVisible;
-        set => SetProperty(ref _isColorPickerVisible, value);
+        get => _ColorElegidoVisible;
+        set => SetProperty(ref _ColorElegidoVisible, value);
     }
 
-    public bool IsGameOver
+    public bool JuegoTerminado
     {
-        get => _isGameOver;
-        set => SetProperty(ref _isGameOver, value);
+        get => _JuegoTerminado;
+        set => SetProperty(ref _JuegoTerminado, value);
     }
 
-    public string WinnerName
+    public string GanadorNombre
     {
-        get => _winnerName;
-        set => SetProperty(ref _winnerName, value);
+        get => _ganadorNombre;
+        set => SetProperty(ref _ganadorNombre, value);
     }
 
     public string GameOverDetails
@@ -78,31 +83,29 @@ public class MainViewModel : ViewModelBase
     }
 
     // Propiedades calculadas para la interfaz
-    public int PendingDrawCards => Game.PendingDrawCards;
-    public bool HasPendingDraws => Game.PendingDrawCards > 0;
-    public bool CanPassTurn => Game.DrawPile.Count == 0 && !HasPendingDraws;
-    private int _messageToken = 0; // Ayuda a cancelar mensajes viejos si suceden rápido
-
-    public bool HasCardsInDeck => Game.DrawPile.Count > 0;
-   
-    public string PenaltyButtonText => Game.DrawPile.Count == 0 
+    public int CartasPendientes => Game.PilaPendiente;
+    public bool TienePendientes => Game.PilaPendiente > 0;
+    public bool PuedePasar => Game.Pila.Count == 0 && !TienePendientes;
+    private int _mensajeToken = 0; // Ayuda a cancelar mensajes viejos si suceden rápido
+    public bool HayCartasEnMazo => Game.Pila.Count > 0;
+    public string BotonPenalizacion => Game.Pila.Count == 0 
         ? "Pasar Turno" 
-        : $"Tomar +{PendingDrawCards} y Perder Turno";
+        : $"Tomar +{CartasPendientes} y Perder Turno";
     
-    private async void ShowTemporaryMessage(string message, int durationMs = 5000)
+    private async void MensajeTemporal(string mensaje, int duracionMs = 5000)
     {
-        int currentToken = ++_messageToken;
-        StatusMessage = message;
+        int currentToken = ++_mensajeToken;
+        EstatusMensaje = mensaje;
 
-        await Task.Delay(durationMs);
+        await Task.Delay(duracionMs);
 
-        if (currentToken == _messageToken)
+        if (currentToken == _mensajeToken)
         {
-            UpdateStatus(); 
+            ActualizarEstatus(); 
         }
     }
 
-    public string ActiveColorHex => Game.ActiveColor switch
+    public string ActiveColorHex => Game.ColorActual switch
     {
         CardColor.Red => "#E74C3C",
         CardColor.Yellow => "#F1C40F",
@@ -111,23 +114,25 @@ public class MainViewModel : ViewModelBase
         _ => "#888888"
     };
 
-    public Player BottomPlayer => Game.CurrentPlayer;
+    public Player? BottomPlayer => Game.Jugadores.Count == 0 ? null : Game.actualJugador;
 
-    public Player RightPlayer
+    public Player? RightPlayer
     {
         get
         {
-            int nextIdx = (Game.CurrentPlayerIndex + Game.Direction + Game.Players.Count) % Game.Players.Count;
-            return Game.Players[nextIdx];
+            if (Game.Jugadores.Count == 0) return null;
+            int nextIdx = (Game.actualJugadorIndex + Game.Direccion + Game.Jugadores.Count) % Game.Jugadores.Count;
+            return Game.Jugadores[nextIdx];
         }
     }
 
-    public Player LeftPlayer
+    public Player? LeftPlayer
     {
         get
         {
-            int leftIdx = (Game.CurrentPlayerIndex - Game.Direction + Game.Players.Count) % Game.Players.Count;
-            return Game.Players[leftIdx];
+            if (Game.Jugadores.Count == 0) return null;
+            int leftIdx = (Game.actualJugadorIndex - Game.Direccion + Game.Jugadores.Count) % Game.Jugadores.Count;
+            return Game.Jugadores[leftIdx];
         }
     }
 
@@ -138,229 +143,284 @@ public class MainViewModel : ViewModelBase
 
     public async Task StartGame()
     {
-        ApiService api = new ApiService();
-        List<Player> listaJugadores = new List<Player>();
-        List<string> jugadores = new List<string> { "Jugador_1", "Jugador_2", "Jugador_3" };
+        if (_isStartingGame) return; // Ya se esta creando una partida, se ignora el clic extra
+        _isStartingGame = true;
 
-        string ans = await api.EnviarJugadaLog("/partida/nueva", "");
-        if (!string.IsNullOrEmpty(ans))
+        try
         {
-            var datosJson = JsonSerializer.Deserialize<Dictionary<string, int>>(ans);
-             partidaId = datosJson != null && datosJson.ContainsKey("partida_id") ? datosJson["partida_id"] : 1;
-        }
-        
-        foreach (var player in jugadores)
-        {
-            string respuesta = await api.EnviarJugadaLog("/jugadores/login", new { nombre = player });
-            if (respuesta != null)
+            ApiService api = new ApiService();
+            List<Player> listaJugadores = new List<Player>();
+            List<string> jugadores = new List<string> { "Jugador_1", "Jugador_2", "Jugador_3" };
+
+            partidaID = 0; // Si la API no responde se juega en modo local y no se reutiliza el id de la partida anterior
+
+            string? ans = await api.EnviarJugadaLog("/partida/nueva", "");
+            if (!string.IsNullOrEmpty(ans))
             {
-                var jugadorServidor = JsonSerializer.Deserialize<JugadorRespuesta>(respuesta,  
-                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-                if (jugadorServidor != null)
+                try
                 {
-                    listaJugadores.Add(new Player(jugadorServidor.Id, jugadorServidor.Nombre));
+                    var datosJson = JsonSerializer.Deserialize<Dictionary<string, int>>(ans);
+                    partidaID = datosJson != null && datosJson.ContainsKey("partida_id") ? datosJson["partida_id"] : 1;
+                }
+                catch (JsonException e)
+                {
+                    Console.WriteLine(e.Message);
                 }
             }
-        }
-        
-        _game = new UnoGame(listaJugadores, partidaId);
-        IsGameStarted = true;
-        IsGameOver = false;
 
-        AssignCardActions();
-        UpdateStatus();
-        NotifyAllPositions();
+            int numeroJugador = 0;
+            foreach (var player in jugadores)
+            {
+                numeroJugador++;
+                Player? jugadorCreado = null;
+
+                string? respuesta = await api.EnviarJugadaLog("/jugadores/login", new { nombre = player });
+                if (respuesta != null)
+                {
+                    try
+                    {
+                        var jugadorServidor = JsonSerializer.Deserialize<JugadorRespuesta>(respuesta,  
+                            new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                        if (jugadorServidor != null && jugadorServidor.Id > 0)
+                        {
+                            jugadorCreado = new Player(jugadorServidor.Id, jugadorServidor.Nombre);
+                        }
+                    }
+                    catch (JsonException e)
+                    {
+                        Console.WriteLine(e.Message);
+                    }
+                }
+
+                // Si la API no esta disponible el jugador se crea de forma local para que la partida se pueda jugar igual
+                listaJugadores.Add(jugadorCreado ?? new Player(numeroJugador, player));
+            }
+
+            _game = new UnoGame(listaJugadores, partidaID);
+
+            // Se limpia el estado que pudo quedar de la partida anterior
+            _haDichoUno = false;
+            _CartaWildPendiente = null;
+            ColorElegidoVisible = false;
+            MenuPausaVisible = false;
+
+            JuegoIniciado = true;
+            JuegoTerminado = false;
+
+            AssignCardActions();
+            ActualizarEstatus();
+            NotifyAllPositions();
+        }
+        finally
+        {
+            _isStartingGame = false;
+        }
     }
 
     private void AssignCardActions()
     {
-        foreach (var player in Game.Players)
+        foreach (var player in Game.Jugadores)
         {
-            foreach (var card in player.Hand)
+            foreach (var card in player.Mano)
             {
-                card.PlayAction = PlayCard;
+                card.PlayAction = JugarCarta;
             }
         }
     }
 
-    public async void PlayCard(Card card)
+    public async void JugarCarta(Card card)
     {
-        if (IsGameOver) return;
+        if (JuegoTerminado || _isProcessingPlay) return;
 
         if (card.Color == CardColor.Wild)
         {
-            _pendingWildCard = card;
-            IsColorPickerVisible = true;
+            _CartaWildPendiente = card;
+            ColorElegidoVisible = true;
             return;
         }
         ExecutePlayCard(card, null);
     }
 
-    public void SelectColor(object? parameter)
+    public void SeleccionarColor(object? parameter)
     {
-        if (parameter is string colorName && _pendingWildCard != null)
+        if (parameter is string colorName && _CartaWildPendiente != null)
         {
             if (Enum.TryParse<CardColor>(colorName, out var chosenColor))
             {
-                IsColorPickerVisible = false;
-                ExecutePlayCard(_pendingWildCard, chosenColor);
-                _pendingWildCard = null;
+                ColorElegidoVisible = false;
+                ExecutePlayCard(_CartaWildPendiente, chosenColor);
+                _CartaWildPendiente = null;
             }
         }
     }
-    public bool IsPauseMenuVisible
+    public bool MenuPausaVisible
     {
-        get => _isPauseMenuVisible;
-        set => SetProperty(ref _isPauseMenuVisible, value);
+        get => _menuPausaVisible;
+        set => SetProperty(ref _menuPausaVisible, value);
     }
     public void TogglePauseMenu()
     {
-        IsPauseMenuVisible = !IsPauseMenuVisible;
+        MenuPausaVisible = !MenuPausaVisible;
     }
 
     // Reinicia la partida actual (cierra el menú y llama a StartGame)
     public async Task RestartGame()
     {
-        IsPauseMenuVisible = false;
+        MenuPausaVisible = false;
         await StartGame();
     }
 
     // Abandona la partida y vuelve a la pantalla inicial
     public void QuitToMainMenu()
     {
-        IsPauseMenuVisible = false;
-        IsGameStarted = false;
-        IsGameOver = false;
+        MenuPausaVisible = false;
+        JuegoIniciado = false;
+        JuegoTerminado = false;
         // Podrías llamar a un endpoint de la API para avisar que se abandonó la partida
     }
 
     private async void ExecutePlayCard(Card card, CardColor? chosenColor)
     {
-        Player currentPlayer = _game.CurrentPlayer;
-        int cardsBeforePlay = currentPlayer.Hand.Count; // Guardamos cuántas cartas tenía antes de jugar
+        if (_isProcessingPlay) return; // Ya se esta procesando una jugada, se ignora el clic extra
+        _isProcessingPlay = true;
 
-        if (_game.PlayCard(currentPlayer, card, chosenColor))
+        try
         {
-            string? colorElegidoStr = chosenColor?.ToString();
-            await RegistrarJugadaEnServidor(currentPlayer, card , colorElegidoStr);
+            Player currentPlayer = _game.actualJugador;
+            int cardsBeforePlay = currentPlayer.Mano.Count; // Guardamos cuántas cartas tenía antes de jugar
+            string? mensajeCastigo = null; // Se muestra al final, porque UpdateStatus() sobreescribe el mensaje de estado
 
-            // CASTIGO POR NO DECIR UNO
-            if (cardsBeforePlay == 2) // Si tenía 2 cartas y jugó una, se quedó con 1
+            if (_game.JugarCarta(currentPlayer, card, chosenColor))
             {
-                if (!_hasShoutedUno)
+                string? colorElegidoStr = chosenColor?.ToString();
+                await RegistrarJugadaEnServidor(currentPlayer, card , colorElegidoStr);
+
+                // CASTIGO POR NO DECIR UNO
+                if (cardsBeforePlay == 2) // Si tenía 2 cartas y jugó una, se quedó con 1
                 {
-                    await RegistrarUno(currentPlayer);
-                    ShowTemporaryMessage($"¡{currentPlayer.Name} olvidó decir UNO! Roba 2 cartas de castigo.", 5000);
-                    for (int i = 0; i < 2; i++)
+                    if (!_haDichoUno)
                     {
-                        Card? drawn = _game.DrawCardFromPile();
-                        if (drawn != null)
+                        await RegistrarUno(currentPlayer);
+                        mensajeCastigo = $"¡{currentPlayer.Name} olvidó decir UNO! Roba 2 cartas de castigo.";
+                        for (int i = 0; i < 2; i++)
                         {
-                            currentPlayer.Hand.Add(drawn);
-                            await RegistrarRoboEnServidor(currentPlayer, drawn);
-                            ShowTemporaryMessage($"{_game.CurrentPlayer.Name} ha robado una carta.", 3000);
+                            Card? drawn = _game.TomarCartaDePila();
+                            if (drawn != null)
+                            {
+                                currentPlayer.Mano.Add(drawn);
+                                await RegistrarRoboEnServidor(currentPlayer, drawn);
+                            }
                         }
                     }
                 }
-            }
-            _hasShoutedUno = false;
+                _haDichoUno = false;
 
-            if (currentPlayer.Hand.Count == 0)
+                if (currentPlayer.Mano.Count == 0)
+                {
+                    TerminarConGanador(currentPlayer.Name, "¡Se ha quedado sin cartas!");
+                    await RegistrarVictoriaEnServidor(currentPlayer);
+                    return;
+                }
+
+                AssignCardActions();
+                ActualizarEstatus();
+                NotifyAllPositions();
+
+                if (mensajeCastigo != null) MensajeTemporal(mensajeCastigo, 5000);
+            }
+            else
             {
-                EndGameWithWinner(currentPlayer.Name, "¡Se ha quedado sin cartas!");
-                await RegistrarVictoriaEnServidor(currentPlayer);
-                return;
+                string errorMsg = Game.PilaPendiente > 0
+                    ? $"¡Hay un +{Game.PilaPendiente} acumulado! Responde con +2/+4 o toma el castigo."
+                    : "Movimiento inválido. Elige una carta del mismo color, número o comodín.";
+               
+                MensajeTemporal(errorMsg, 5000);
             }
-
-            AssignCardActions();
-            UpdateStatus();
-            NotifyAllPositions();
         }
-        else
+        finally
         {
-            string errorMsg = Game.PendingDrawCards > 0
-                ? $"¡Hay un +{Game.PendingDrawCards} acumulado! Responde con +2/+4 o toma el castigo."
-                : "Movimiento inválido. Elige una carta del mismo color, número o comodín.";
-           
-            ShowTemporaryMessage(errorMsg, 5000);
+            _isProcessingPlay = false;
         }
     }
 
     // BOTÓN ¡UNO!
-    public async void ShoutUno()
+    public async void DecirUno()
     {
-        _hasShoutedUno = true;
-        await RegistrarUno(_game.CurrentPlayer);
-        ShowTemporaryMessage($"¡{Game.CurrentPlayer.Name} ha dicho UNO!", 3000);
+        _haDichoUno = true;
+        await RegistrarUno(_game.actualJugador);
+        MensajeTemporal($"¡{Game.actualJugador.Name} ha dicho UNO!", 3000);
         NotifyAllPositions(); // Refrescamos para que el botón desaparezca
     }
     public async void DrawCard()
     {
-        if (IsGameOver || Game.DrawPile.Count == 0 || HasPendingDraws) return;
+        if (JuegoTerminado || Game.Pila.Count == 0 || TienePendientes) return;
 
-        Card? drawnCard = _game.DrawCardFromPile();
+        Card? drawnCard = _game.TomarCartaDePila();
         if (drawnCard != null)
         {
-            drawnCard.PlayAction = PlayCard;
-            _game.CurrentPlayer.Hand.Add(drawnCard);
+            drawnCard.PlayAction = JugarCarta;
+            _game.actualJugador.Mano.Add(drawnCard);
            
-            await RegistrarRoboEnServidor(_game.CurrentPlayer, drawnCard);
-            ShowTemporaryMessage($"{_game.CurrentPlayer.Name} ha robado una carta.", 3000);
+            await RegistrarRoboEnServidor(_game.actualJugador, drawnCard);
+            MensajeTemporal($"{_game.actualJugador.Name} ha robado una carta.", 3000);
         }
 
         NotifyAllPositions();
     }
 
-    public async void TakePenalty()
+    public async void TomarPenalizacion()
     {
-        if (Game.PendingDrawCards > 0)
+        if(JuegoTerminado || _isProcessingPlay) return;
+        if (Game.PilaPendiente > 0)
         {
-            Player victim = Game.CurrentPlayer;
-            int count = Game.PendingDrawCards;
-            Game.ResolvePendingDraws(victim);
+            Player victim = Game.actualJugador;
+            int count = Game.PilaPendiente;
+            Game.ResuelveTomarPendientes(victim);
             
             AssignCardActions();
-            await RegistrarPenalizacionEnServidor(_game.CurrentPlayer);
             
-            _hasShoutedUno = false; // Reset de UNO si se pierde el turno
-
-            ShowTemporaryMessage($"{victim.Name} no pudo responder y robó {count} cartas.", 5000);
-           
+            _haDichoUno = false; // Reset de UNO si se pierde el turno
+                                
+            MensajeTemporal($"{victim.Name} no pudo responder y robó {count} cartas.", 5000);
+                                           
             NotifyAllPositions();
+            
+            await RegistrarPenalizacionEnServidor(victim);
         }
     }
 
-    public async void PassTurn()
+    public async void PasarTurno()
     {
-        if (IsGameOver || !CanPassTurn) return;
+        if (JuegoTerminado || _isProcessingPlay || !PuedePasar) return;
 
-        Game.ConsecutivePasses++;
+        Game.PasesContinuos++;
 
-        if (Game.ConsecutivePasses >= Game.Players.Count)
+        if (Game.PasesContinuos >= Game.Jugadores.Count)
         {
-            CalculateEndGameByPoints();
+            CalcularPuntosFinales();
             return;
         }
-        await RegistrarPaseDeTurnoEnServidor(_game.CurrentPlayer);
+        Player jugadorQuePaso = _game.actualJugador;
 
-        _hasShoutedUno = false; // Reset de UNO
+        _haDichoUno = false; // Reset de UNO
 
-        Game.NextTurn();
+        // Primero se cambia el turno y se refresca la pantalla; hasta después se avisa al servidor.
+        // Así un doble clic en "Pasar Turno" ya no avanza el turno dos veces.
+        Game.SiguienteTurno();
         AssignCardActions();
-        UpdateStatus();
+        ActualizarEstatus();
         NotifyAllPositions();
+
+        await RegistrarPaseDeTurnoEnServidor(jugadorQuePaso);
     }
 
-    private async void CalculateEndGameByPoints()
+    private async void CalcularPuntosFinales()
     {
-        var scores = Game.Players.Select(p => new { Player = p, Score = Game.CalculatePlayerPoints(p) })
-                                 .OrderBy(x => x.Score)
-                                 .ToList();
+        var scores = Game.Jugadores.Select(p => new { Player = p, Score = Game.CalcularPuntos(p) })
+            .OrderBy(x => x.Score)
+            .ToList();
 
         var winner = scores.First();
-        WinnerName = winner.Player.Name;
-        await RegistrarVictoriaEnServidor(winner.Player);
-
 
         string details = "PUNTUACIÓN FINAL:\n";
         foreach (var s in scores)
@@ -368,89 +428,93 @@ public class MainViewModel : ViewModelBase
             details += $"{s.Player.Name}: {s.Score} pts\n";
         }
 
-        EndGameWithWinner(WinnerName, details);
+        // Primero se muestra la pantalla final (IsGameOver = true) y hasta después se avisa al servidor.
+        // Así un doble clic en "Pasar Turno" ya no registra dos veces la victoria.
+        TerminarConGanador(winner.Player.Name, details);
+        await RegistrarVictoriaEnServidor(winner.Player);
     }
 
-    private void EndGameWithWinner(string name, string details)
+
+    private void TerminarConGanador(string name, string details)
     {
-        WinnerName = name;
+        GanadorNombre = name;
         GameOverDetails = details;
-        IsGameOver = true;
-        StatusMessage = $"¡JUEGO FINALIZADO! Ganador: {WinnerName}";
+        JuegoTerminado = true;
+        EstatusMensaje = $"¡JUEGO FINALIZADO! Ganador: {GanadorNombre}";
         NotifyAllPositions();
     }
     
-    private void UpdatePlayableCards()
+    private void ActualizarCartasJugables()
     {
-        if (Game == null || Game.Players.Count == 0) return;
+        if (Game == null || Game.Jugadores.Count == 0) return;
 
-        foreach (var card in Game.CurrentPlayer.Hand)
+        foreach (var card in Game.actualJugador.Mano)
         {
-            if (Game.PendingDrawCards > 0)
+            if (Game.PilaPendiente > 0)
             {
-                card.IsPlayable = (card.Value == CardValue.DrawTwo || card.Value == CardValue.WildDrawFour);
+                card.esJugable = (card.Value == CardValue.DrawTwo || card.Value == CardValue.WildDrawFour);
             }
             else
             {
-                card.IsPlayable = card.CanPlayOn(TopCard, Game.ActiveColor);
+                card.esJugable = card.Jugable(TopCard, Game.ColorActual);
             }
         }
     }
 
     private void NotifyAllPositions()
     {
-        UpdatePlayableCards();
+        ActualizarCartasJugables();
         OnPropertyChanged(nameof(Game));
         OnPropertyChanged(nameof(BottomPlayer));
         OnPropertyChanged(nameof(RightPlayer));
         OnPropertyChanged(nameof(LeftPlayer));
         OnPropertyChanged(nameof(TopCard));
-        OnPropertyChanged(nameof(PendingDrawCards));
-        OnPropertyChanged(nameof(HasPendingDraws));
-        OnPropertyChanged(nameof(CanPassTurn));
+        OnPropertyChanged(nameof(CartasPendientes));
+        OnPropertyChanged(nameof(TienePendientes));
+        OnPropertyChanged(nameof(PuedePasar));
         OnPropertyChanged(nameof(ActiveColorHex));
        
-        OnPropertyChanged(nameof(HasCardsInDeck));
-        OnPropertyChanged(nameof(PenaltyButtonText));
+        OnPropertyChanged(nameof(HayCartasEnMazo));
+        OnPropertyChanged(nameof(BotonPenalizacion));
 
         // Refrescamos el estado del botón de UNO
         OnPropertyChanged(nameof(CanShoutUno));
     }
 
-    private void UpdateStatus()
+    private void ActualizarEstatus()
     {
-        _messageToken++; 
+        _mensajeToken++; 
 
-        if (Game.PendingDrawCards > 0)
+        if (Game.PilaPendiente > 0)
         {
-            StatusMessage = $"¡ATENCIÓN {Game.CurrentPlayer.Name}! Hay +{Game.PendingDrawCards} acumulados. ¡Responde con +2/+4 o toma el castigo!";
+            EstatusMensaje = $"¡ATENCIÓN {Game.actualJugador.Name}! Hay +{Game.PilaPendiente} acumulados. ¡Responde con +2/+4 o toma el castigo!";
         }
         else
         {
-            StatusMessage = $"Turno de: {Game.CurrentPlayer.Name} | Mazo: {Game.DrawPile.Count} cartas";
+            EstatusMensaje = $"Turno de: {Game.actualJugador.Name} | Mazo: {Game.Pila.Count} cartas";
         }
     }
 
-    public async Task RegistrarJugadaEnServidor(Player jugador, Card carta, string colorElegido = null)
+    public async Task RegistrarJugadaEnServidor(Player jugador, Card carta, string? colorElegido = null)
     {
         ApiService api = new ApiService();
         var datosJugada = new
         {
-            jugador_id = jugador.Id,
-            partida_id = partidaId,
+            jugador_id = jugador.ID,
+            partida_id = partidaID,
             color_carta = carta.Color.ToString(),
             valor_carta = carta.Value.ToString(),
             color_elegido = colorElegido 
         };
-        string respuesta = await api.EnviarJugadaLog("/partida/jugar-carta", datosJugada);
+        string? respuesta = await api.EnviarJugadaLog("/partida/jugar-carta", datosJugada);
         if (respuesta != null) Console.WriteLine("Acción registrada en el servidor correctamente.");
     }
     
     public async Task RegistrarVictoriaEnServidor(Player jugador)
     {
         ApiService api = new ApiService();
-        var datosJugada = new { jugador_id = jugador.Id, partida_id = partidaId };
-        string respuesta = await api.EnviarJugadaLog("/partida/gano", datosJugada);
+        var datosJugada = new { jugador_id = jugador.ID, partida_id = partidaID };
+        string? respuesta = await api.EnviarJugadaLog("/partida/gano", datosJugada);
         if (respuesta != null) Console.WriteLine("Acción registrada en el servidor correctamente.");
     }
     
@@ -459,29 +523,29 @@ public class MainViewModel : ViewModelBase
         ApiService api = new ApiService();
         var datosRobo = new
         {
-            jugador_id = jugador.Id, 
-            partida_id = partidaId, 
+            jugador_id = jugador.ID, 
+            partida_id = partidaID, 
             color_carta= card.Color.ToString() , 
             valor_carta = card.Value.ToString()
         };
-        string respuesta = await api.EnviarJugadaLog("/partida/robar-carta", datosRobo);
+        string? respuesta = await api.EnviarJugadaLog("/partida/robar-carta", datosRobo);
     }
     
     public async Task RegistrarPenalizacionEnServidor(Player jugador)
     {
         ApiService api = new ApiService();
-        await api.EnviarJugadaLog("/partida/tomar-penalizacion", new { jugador_id = jugador.Id, partida_id = partidaId });
+        await api.EnviarJugadaLog("/partida/tomar-penalizacion", new { jugador_id = jugador.ID, partida_id = partidaID });
     }
 
     public async Task RegistrarPaseDeTurnoEnServidor(Player jugador)
     {
         ApiService api = new ApiService();
-        await api.EnviarJugadaLog("/partida/pasar-turno", new { jugador_id = jugador.Id, partida_id = partidaId });
+        await api.EnviarJugadaLog("/partida/pasar-turno", new { jugador_id = jugador.ID, partida_id = partidaID });
     }
     
     public async Task RegistrarUno(Player jugador)
     {
         ApiService api = new ApiService();
-        await api.EnviarJugadaLog("/partida/uno", new { jugador_id = jugador.Id, partida_id = partidaId, decision=_hasShoutedUno });
+        await api.EnviarJugadaLog("/partida/uno", new { jugador_id = jugador.ID, partida_id = partidaID, decision=_haDichoUno });
     }
 }

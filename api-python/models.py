@@ -38,7 +38,7 @@ class Partida(Base):
     movimientos = relationship("LogMovimiento", back_populates="partida")
     jugadores = relationship("JugadorPartida", back_populates="partida")
 
-class Jugador_Partida(Base):
+class JugadorPartida(Base):
     __tablename__ = "jugador_partida"
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     jugador_id = Column(Integer, ForeignKey("jugadores.id"), nullable=False)

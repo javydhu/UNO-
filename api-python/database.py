@@ -1,20 +1,26 @@
+#Para poder leer la direccion de la base de datos desde una variable de entorno
+import os
+
 #Es lo que nos ayuda a crear la conexion
 from sqlalchemy import create_engine
 
 #Es la clase que nos ayuda a poner en codigo las bases
 #relacionales de la cual van a heredar los modelos
-from sqlalchemy.ext.declarative import declarative_base
+#(antes se importaba de sqlalchemy.ext.declarative, que esta obsoleto en SQLAlchemy 2.0)
+from sqlalchemy.orm import declarative_base
 #Es la que nos ayuda a hacer las sesiones mediante las cuales
 #la API se conecta a la base de datos
 from sqlalchemy.orm import sessionmaker
 
 #Url que ocupamos para poder hacer la conexion con: 
 #driver: mysql+pymysql
-#usuario: root
-#password: jaro
+#usuario: el usuario de MySQL de cada quien
+#password: la contraseña de ese usuario (si tiene caracteres especiales se escribe codificada en formato URL)
 #servidor: localhost
 #base de datos: juego_uno_db
-SQLALCHEMY_DATABASE_URL = "mysql+pymysql://jaro:jaro3832@localhost/juego_uno_db"
+#Se lee de la variable de entorno UNO_DB_URL para no dejar contraseñas escritas en el repositorio.
+#Si la variable no existe se usa el valor de ejemplo de abajo, que hay que cambiar por el de cada equipo.
+SQLALCHEMY_DATABASE_URL = os.getenv("UNO_DB_URL", "mysql+pymysql://root:tu_password@localhost/juego_uno_db")
 
 #encinde el motor con la conexion que le acabamos de dar
 #cuando corremos la api es la conexion que existe con la 

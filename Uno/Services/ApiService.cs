@@ -1,5 +1,3 @@
-using Avalonia.Platform;
-
 namespace Uno.Services;
 using System;
 using System.Net.Http;
@@ -18,10 +16,13 @@ public class ApiService
     //Se declara la base de la url con la que se va a conectar con la base de datos
     private readonly string _baseURL = "http://127.0.0.1:8000";
 
+    //Un solo HttpClient compartido por toda la aplicacion (crear uno nuevo en cada peticion desperdicia sockets).
+    //Si el servidor no contesta en 5 segundos la peticion se cancela y el juego sigue sin registrar ese movimiento
+    private static readonly HttpClient _client = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
+
     //Funcion que envia las jugadas o movimientos, tambien podria enviar en un futuro a los jugadores
-    public async Task<string> EnviarJugadaLog(string endpoint, object data)
+    public async Task<string?> EnviarJugadaLog(string endpoint, object data)
     {
-        using HttpClient client = new HttpClient();
         try
         {
             //hace el objeto que le mandamos en formato JSON
@@ -31,32 +32,33 @@ public class ApiService
             HttpContent content = new StringContent(jsonMessage, Encoding.UTF8, "application/json");
 
             string url = _baseURL + endpoint;
-            HttpResponseMessage response = await client.PostAsync(url, content);
+            HttpResponseMessage response = await _client.PostAsync(url, content);
             response.EnsureSuccessStatusCode();
 
             string respuestaServidor = await response.Content.ReadAsStringAsync();
             return respuestaServidor;
         }
-        catch (HttpRequestException e)
+        catch (Exception e)
         {
+            //Se atrapa cualquier excepcion (servidor apagado, tiempo agotado, etc.) porque estas funciones se llaman
+            //desde metodos async void y una excepcion sin atrapar cerraria toda la aplicacion
             Console.WriteLine(e.Message);
             return null;
         }
     }
 
-    public async Task<string> Obtenerdatos(string endpoint)
+    public async Task<string?> Obtenerdatos(string endpoint)
     {
-        using HttpClient client = new HttpClient();
         try
         {
             string URL = _baseURL + endpoint;
 
-            HttpResponseMessage response = await client.GetAsync(URL);
+            HttpResponseMessage response = await _client.GetAsync(URL);
             response.EnsureSuccessStatusCode();
 
             return await response.Content.ReadAsStringAsync();
         }
-        catch (HttpRequestException e)
+        catch (Exception e)
         {
             Console.WriteLine(e.Message);
             return null;

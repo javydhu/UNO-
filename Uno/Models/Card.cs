@@ -12,11 +12,11 @@ public class Card : ViewModelBase
     public CardValue Value { get; set; }
 
     // Propiedad que indica si la carta es válida para jugarse ahorita
-    private bool _isPlayable;
-    public bool IsPlayable
+    private bool _esJugable;
+    public bool esJugable
     {
-        get => _isPlayable;
-        set => SetProperty(ref _isPlayable, value);
+        get => _esJugable;
+        set => SetProperty(ref _esJugable, value);
     }
 
     public string ImagePath => GetImagePath();
@@ -28,7 +28,7 @@ public class Card : ViewModelBase
         Value = value;
     }
 
-    public bool CanPlayOn(Card topCard, CardColor currentActiveColor)
+    public bool Jugable(Card topCard, CardColor currentActiveColor)
     {
         if (Color == CardColor.Wild) return true;
         if (Color == currentActiveColor) return true;

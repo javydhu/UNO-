@@ -15,7 +15,7 @@
 
 	<Grid>
 		<!-- Menu Principal -->
-		<Grid IsVisible="{Binding !IsGameStarted}">
+		<Grid IsVisible="{Binding !JuegoIniciado}">
 			<Image Source="avares://Uno/Assets/background1.png" Stretch="UniformToFill" HorizontalAlignment="Center" VerticalAlignment="Center"/>
 			<Button Content="¡ JUGAR !"
 			        Command="{Binding StartGame}"
@@ -32,14 +32,14 @@
 		</Grid>
 
 		<!-- Tablero de juego -->
-		<Grid IsVisible="{Binding IsGameStarted}" RowDefinitions="Auto, *">
+		<Grid IsVisible="{Binding JuegoIniciado}" RowDefinitions="Auto, *">
 			<Image Grid.RowSpan="2" Source="avares://Uno/Assets/background.png" Stretch="UniformToFill" HorizontalAlignment="Center" VerticalAlignment="Center"/>
 
 			<!-- Contenedor superior para el Banner y el Botón de Opciones -->
 			<Grid Grid.Row="0">
 				<!-- Banner de estado superior (Centrado) -->
 				<Border Background="#CC1E1E1E" Padding="12">
-					<TextBlock Text="{Binding StatusMessage}" Foreground="White" FontSize="20" FontWeight="Bold" HorizontalAlignment="Center"/>
+					<TextBlock Text="{Binding EstatusMensaje}" Foreground="White" FontSize="20" FontWeight="Bold" HorizontalAlignment="Center"/>
 				</Border>
 
 				<!-- NUEVO: Botón de Opciones (Alineado a la izquierda) -->
@@ -71,8 +71,8 @@
 						<ScrollViewer HorizontalScrollBarVisibility="Hidden" 
 						              VerticalScrollBarVisibility="Disabled" 
 						              MaxWidth="300"
-						              PointerWheelChanged="OnHandPointerWheelChanged">
-							<ItemsControl ItemsSource="{Binding LeftPlayer.Hand}">
+						              PointerWheelChanged="EfectoHoverEnMano">
+							<ItemsControl ItemsSource="{Binding LeftPlayer.Mano}">
 								<ItemsControl.ItemsPanel>
 									<ItemsPanelTemplate>
 										<StackPanel Orientation="Horizontal" Spacing="8"/>
@@ -106,7 +106,7 @@
 							        Padding="0" 
 							        BorderThickness="0" 
 							        Cursor="Hand"
-							        IsVisible="{Binding HasCardsInDeck}">
+							        IsVisible="{Binding HayCartasEnMazo}">
                         
 								<Image Source="avares://Uno/Assets/Cards/uno.png" Width="100" Height="150"/>
                         
@@ -125,7 +125,7 @@
                         
 						<!-- DECIR UNO -->
 						<Button Content="¡ UNO !"
-						        Command="{Binding ShoutUno}"
+						        Command="{Binding DecirUno}"
 						        IsVisible="{Binding CanShoutUno}"
 						        Padding="30,10"
 						        Background="#F39C12"
@@ -135,8 +135,8 @@
 						        Cursor="Hand"/>
 
 						<Button Content="Pasar Turno"
-						        Command="{Binding PassTurn}"
-						        IsVisible="{Binding CanPassTurn}"
+						        Command="{Binding PasarTurno}"
+						        IsVisible="{Binding PuedePasar}"
 						        Padding="20,10"
 						        Background="#7F8C8D"
 						        Foreground="White"
@@ -144,9 +144,9 @@
 						        CornerRadius="8"
 						        Cursor="Hand"/>
 
-						<Button Content="{Binding PenaltyButtonText}"
-						        Command="{Binding TakePenalty}"
-						        IsVisible="{Binding HasPendingDraws}"
+						<Button Content="{Binding BotonPenalizacion}"
+						        Command="{Binding TomarPenalizacion}"
+						        IsVisible="{Binding TienePendientes}"
 						        Padding="20,10"
 						        Background="#E74C3C"
 						        Foreground="White"
@@ -166,8 +166,8 @@
 						<ScrollViewer HorizontalScrollBarVisibility="Hidden" 
 						              VerticalScrollBarVisibility="Disabled" 
 						              MaxWidth="300"
-						              PointerWheelChanged="OnHandPointerWheelChanged">
-							<ItemsControl ItemsSource="{Binding RightPlayer.Hand}">
+						              PointerWheelChanged="EfectoHoverEnMano">
+							<ItemsControl ItemsSource="{Binding RightPlayer.Mano}">
 								<ItemsControl.ItemsPanel>
 									<ItemsPanelTemplate>
 										<StackPanel Orientation="Horizontal" Spacing="8"/>
@@ -188,7 +188,7 @@
 					<StackPanel HorizontalAlignment="Center">
 						<TextBlock Text="{Binding BottomPlayer.Name, StringFormat='TU TURNO: {0}'}" Foreground="#3498DB" FontWeight="Bold" FontSize="20" HorizontalAlignment="Center" Margin="0,0,0,8"/>
 						<ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
-							<ItemsControl ItemsSource="{Binding BottomPlayer.Hand}">
+							<ItemsControl ItemsSource="{Binding BottomPlayer.Mano}">
 								<ItemsControl.ItemsPanel>
 									<ItemsPanelTemplate>
 										<StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center"/>
@@ -203,7 +203,7 @@
 										        Padding="0" 
 										        BorderThickness="0" 
 										        Cursor="Hand"
-										        Classes.playable="{Binding IsPlayable}"
+										        Classes.playable="{Binding esJugable}"
 										        RenderTransformOrigin="50%,50%">
          
 											<Button.Styles>
@@ -237,7 +237,7 @@
 		</Grid>
 
 		<!-- Modal de selección de colores -->
-		<Grid IsVisible="{Binding IsColorPickerVisible}"
+		<Grid IsVisible="{Binding ColorElegidoVisible}"
 		      Background="#AA000000"
 		      IsHitTestVisible="True"
 		      HorizontalAlignment="Stretch"
@@ -256,28 +256,28 @@
 					<TextBlock Text="¡ELIGE UN COLOR!" Foreground="White" FontSize="26" FontWeight="Bold" HorizontalAlignment="Center"/>
 
 					<WrapPanel Width="280" Height="280" HorizontalAlignment="Center" VerticalAlignment="Center">
-						<Button Command="{Binding SelectColor}" CommandParameter="Red"
+						<Button Command="{Binding SeleccionarColor}" CommandParameter="Red"
 						        Width="120" Height="120" Margin="10"
 						        Background="#E74C3C" Foreground="White"
 						        FontSize="18" FontWeight="Bold"
 						        Content="ROJO" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
 						        CornerRadius="12" Cursor="Hand" IsHitTestVisible="True"/>
 
-						<Button Command="{Binding SelectColor}" CommandParameter="Yellow"
+						<Button Command="{Binding SeleccionarColor}" CommandParameter="Yellow"
 						        Width="120" Height="120" Margin="10"
 						        Background="#F1C40F" Foreground="Black"
 						        FontSize="18" FontWeight="Bold"
 						        Content="AMARILLO" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
 						        CornerRadius="12" Cursor="Hand" IsHitTestVisible="True"/>
 
-						<Button Command="{Binding SelectColor}" CommandParameter="Blue"
+						<Button Command="{Binding SeleccionarColor}" CommandParameter="Blue"
 						        Width="120" Height="120" Margin="10"
 						        Background="#3498DB" Foreground="White"
 						        FontSize="18" FontWeight="Bold"
 						        Content="AZUL" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
 						        CornerRadius="12" Cursor="Hand" IsHitTestVisible="True"/>
 
-						<Button Command="{Binding SelectColor}" CommandParameter="Green"
+						<Button Command="{Binding SeleccionarColor}" CommandParameter="Green"
 						        Width="120" Height="120" Margin="10"
 						        Background="#2ECC71" Foreground="White"
 						        FontSize="18" FontWeight="Bold"
@@ -289,11 +289,11 @@
 		</Grid>
 
 		<!-- Pantalla de victoria y puntos -->
-		<Grid IsVisible="{Binding IsGameOver}" Background="#CC000000">
+		<Grid IsVisible="{Binding JuegoTerminado}" Background="#CC000000">
 			<Border Background="#1E1E1E" CornerRadius="20" Padding="40" HorizontalAlignment="Center" VerticalAlignment="Center" BorderBrush="#FFD700" BorderThickness="3">
 				<StackPanel Spacing="20" HorizontalAlignment="Center">
 					<TextBlock Text="¡JUEGO FINALIZADO!" Foreground="#FFD700" FontSize="32" FontWeight="Bold" HorizontalAlignment="Center"/>
-					<TextBlock Text="{Binding WinnerName, StringFormat='¡GANADOR: {0}!'}" Foreground="White" FontSize="24" FontWeight="Bold" HorizontalAlignment="Center"/>
+					<TextBlock Text="{Binding GanadorNombre, StringFormat='¡GANADOR: {0}!'}" Foreground="White" FontSize="24" FontWeight="Bold" HorizontalAlignment="Center"/>
 					<TextBlock Text="{Binding GameOverDetails}" Foreground="#CCCCCC" FontSize="18" HorizontalAlignment="Center" TextAlignment="Center"/>
 
 					<Button Content="Nueva Partida"
@@ -310,7 +310,7 @@
 			</Border>
 		</Grid>
 
-	<Grid IsVisible="{Binding IsPauseMenuVisible}"
+	<Grid IsVisible="{Binding MenuPausaVisible}"
               Background="#AA000000"
               IsHitTestVisible="True"
               HorizontalAlignment="Stretch"
