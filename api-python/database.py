@@ -20,7 +20,7 @@ from sqlalchemy.orm import sessionmaker
 #base de datos: juego_uno_db
 #Se lee de la variable de entorno UNO_DB_URL para no dejar contraseñas escritas en el repositorio.
 #Si la variable no existe se usa el valor de ejemplo de abajo, que hay que cambiar por el de cada equipo.
-SQLALCHEMY_DATABASE_URL = os.getenv("UNO_DB_URL", "mysql+pymysql://root:tu_password@localhost/juego_uno_db")
+SQLALCHEMY_DATABASE_URL = os.getenv("UNO_DB_URL", "mysql+pymysql://root:m4rc14n0@localhost/juego_uno_db")
 
 #encinde el motor con la conexion que le acabamos de dar
 #cuando corremos la api es la conexion que existe con la 

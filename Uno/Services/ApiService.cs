@@ -14,7 +14,8 @@ using Uno.Models;
 public class ApiService
 {
     //Se declara la base de la url con la que se va a conectar con la base de datos
-    private readonly string _baseURL = "http://127.0.0.1:8000";
+    public static string ServerIP { get; set; } = "127.0.0.1";
+    public static string BaseURL => $"http://{ServerIP}:8000";
 
     //Un solo HttpClient compartido por toda la aplicacion (crear uno nuevo en cada peticion desperdicia sockets).
     //Si el servidor no contesta en 5 segundos la peticion se cancela y el juego sigue sin registrar ese movimiento
@@ -31,7 +32,7 @@ public class ApiService
             //ahora que ya esta en formato JSON se hace conte
             HttpContent content = new StringContent(jsonMessage, Encoding.UTF8, "application/json");
 
-            string url = _baseURL + endpoint;
+            string url = BaseURL + endpoint;
             HttpResponseMessage response = await _client.PostAsync(url, content);
             response.EnsureSuccessStatusCode();
 
@@ -51,9 +52,9 @@ public class ApiService
     {
         try
         {
-            string URL = _baseURL + endpoint;
+            string url = BaseURL + endpoint;
 
-            HttpResponseMessage response = await _client.GetAsync(URL);
+            HttpResponseMessage response = await _client.GetAsync(url);
             response.EnsureSuccessStatusCode();
 
             return await response.Content.ReadAsStringAsync();

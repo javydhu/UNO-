@@ -24,6 +24,27 @@ public class MainViewModel : ViewModelBase
     private bool _menuPausaVisible = false;
     private bool _isProcessingPlay = false; 
     private bool _isStartingGame = false;
+    private string _nombreUsuario = "Jugador_1";
+    private string _ipServidor = "127.0.0.1";
+    private string _idPartidaInput = string.Empty;
+
+    public string IDPartidaInput
+    {
+        get => _idPartidaInput;
+        set => SetProperty(ref _idPartidaInput, value);
+    }
+
+    public string NombreUsuario
+    {
+        get => _nombreUsuario;
+        set => SetProperty(ref _nombreUsuario, value);
+    }
+
+    public string IPServidor
+    {
+        get => _ipServidor;
+        set => SetProperty(ref _ipServidor, value);
+    }
 
     // El botón de UNO aparece solo si el jugador tiene 2 cartas, al menos una es jugable y aún no lo ha presionado
     public bool CanShoutUno => Game.Jugadores.Count > 0
@@ -148,53 +169,74 @@ public class MainViewModel : ViewModelBase
 
         try
         {
+            ApiService.ServerIP = string.IsNullOrWhiteSpace(IPServidor) ? "127.0.0.1" : IPServidor.Trim();
+
             ApiService api = new ApiService();
             List<Player> listaJugadores = new List<Player>();
-            List<string> jugadores = new List<string> { "Jugador_1", "Jugador_2", "Jugador_3" };
 
-            partidaID = 0; // Si la API no responde se juega en modo local y no se reutiliza el id de la partida anterior
+            // 1. Registro del jugador en el servidor
+            int miId = 1;
+            string nombreFinal = string.IsNullOrWhiteSpace(NombreUsuario) ? "Jugador_1" : NombreUsuario.Trim();
 
-            string? ans = await api.EnviarJugadaLog("/partida/nueva", "");
-            if (!string.IsNullOrEmpty(ans))
+            string? respuestaLogin = await api.EnviarJugadaLog("/jugadores/login", new { nombre = nombreFinal });
+            if (string.IsNullOrEmpty(respuestaLogin))
             {
-                try
-                {
-                    var datosJson = JsonSerializer.Deserialize<Dictionary<string, int>>(ans);
-                    partidaID = datosJson != null && datosJson.ContainsKey("partida_id") ? datosJson["partida_id"] : 1;
-                }
-                catch (JsonException e)
-                {
-                    Console.WriteLine(e.Message);
-                }
+                MensajeTemporal("Error: No se pudo conectar a la IP del servidor.", 5000);
+                JuegoIniciado = false;
+                return;
             }
 
-            int numeroJugador = 0;
-            foreach (var player in jugadores)
+            try
             {
-                numeroJugador++;
-                Player? jugadorCreado = null;
+                var jugadorServidor = JsonSerializer.Deserialize<JugadorRespuesta>(respuestaLogin,
+                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                if (jugadorServidor != null && jugadorServidor.Id > 0)
+                {
+                    miId = jugadorServidor.Id;
+                }
+            }
+            catch (JsonException e)
+            {
+                Console.WriteLine(e.Message);
+            }
 
-                string? respuesta = await api.EnviarJugadaLog("/jugadores/login", new { nombre = player });
-                if (respuesta != null)
+            // 2. Determinar si CREA una partida nueva o se UNE a una existente
+            if (int.TryParse(IDPartidaInput?.Trim(), out int idExistente) && idExistente > 0)
+            {
+                // UNIRSE A PARTIDA EXISTENTE
+                partidaID = idExistente;
+                var datosUnirse = new { partida_id = partidaID, jugador_id = miId };
+                string? ansUnirse = await api.EnviarJugadaLog("/partida/unirse", datosUnirse);
+
+                if (string.IsNullOrEmpty(ansUnirse))
+                {
+                    MensajeTemporal($"Error: No existe la partida ID {partidaID} en el servidor.", 5000);
+                    JuegoIniciado = false;
+                    return;
+                }
+            }
+            else
+            {
+                // CREAR PARTIDA NUEVA (Host)
+                string? ansNueva = await api.EnviarJugadaLog("/partida/nueva", "");
+                if (!string.IsNullOrEmpty(ansNueva))
                 {
                     try
                     {
-                        var jugadorServidor = JsonSerializer.Deserialize<JugadorRespuesta>(respuesta,  
-                            new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-                        if (jugadorServidor != null && jugadorServidor.Id > 0)
-                        {
-                            jugadorCreado = new Player(jugadorServidor.Id, jugadorServidor.Nombre);
-                        }
+                        var datosJson = JsonSerializer.Deserialize<Dictionary<string, int>>(ansNueva);
+                        partidaID = datosJson != null && datosJson.ContainsKey("partida_id") ? datosJson["partida_id"] : 1;
                     }
                     catch (JsonException e)
                     {
                         Console.WriteLine(e.Message);
                     }
                 }
-
-                // Si la API no esta disponible el jugador se crea de forma local para que la partida se pueda jugar igual
-                listaJugadores.Add(jugadorCreado ?? new Player(numeroJugador, player));
             }
+
+            // 3. Cargar la lista de jugadores local
+            listaJugadores.Add(new Player(miId, nombreFinal));
+            listaJugadores.Add(new Player(2, "Jugador_2"));
+            listaJugadores.Add(new Player(3, "Jugador_3"));
 
             _game = new UnoGame(listaJugadores, partidaID);
 
@@ -281,8 +323,14 @@ public class MainViewModel : ViewModelBase
 
     private async void ExecutePlayCard(Card card, CardColor? chosenColor)
     {
-        if (_isProcessingPlay) return; // Ya se esta procesando una jugada, se ignora el clic extra
-        _isProcessingPlay = true;
+        if (_isProcessingPlay) return;
+        // Solo se permite jugar si es el turno de TU jugador local
+        if (Game.actualJugador.ID != BottomPlayer?.ID)
+        {
+            MensajeTemporal("¡No es tu turno!", 3000);
+            _isProcessingPlay = false;
+            return;
+        }
 
         try
         {
