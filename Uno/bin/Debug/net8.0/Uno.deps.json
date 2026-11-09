@@ -19,8 +19,10 @@
       },
       "Avalonia/11.0.10": {
         "dependencies": {
+          "Avalonia.BuildServices": "0.0.29",
           "Avalonia.Remote.Protocol": "11.0.10",
-          "MicroCom.Runtime": "0.11.0"
+          "MicroCom.Runtime": "0.11.0",
+          "System.ComponentModel.Annotations": "4.5.0"
         },
         "runtime": {
           "lib/net6.0/Avalonia.Base.dll": {
@@ -70,20 +72,21 @@
           "runtimes/win-arm64/native/av_libglesv2.dll": {
             "rid": "win-arm64",
             "assetType": "native",
-            "fileVersion": "2.1.0.0"
+            "fileVersion": "0.0.0.0"
           },
           "runtimes/win-x64/native/av_libglesv2.dll": {
             "rid": "win-x64",
             "assetType": "native",
-            "fileVersion": "2.1.0.0"
+            "fileVersion": "0.0.0.0"
           },
           "runtimes/win-x86/native/av_libglesv2.dll": {
             "rid": "win-x86",
             "assetType": "native",
-            "fileVersion": "2.1.0.0"
+            "fileVersion": "0.0.0.0"
           }
         }
       },
+      "Avalonia.BuildServices/0.0.29": {},
       "Avalonia.Desktop/11.0.10": {
         "dependencies": {
           "Avalonia": "11.0.10",
@@ -153,8 +156,10 @@
           "Avalonia": "11.0.10",
           "HarfBuzzSharp": "7.3.0",
           "HarfBuzzSharp.NativeAssets.Linux": "7.3.0",
+          "HarfBuzzSharp.NativeAssets.WebAssembly": "7.3.0",
           "SkiaSharp": "2.88.7",
-          "SkiaSharp.NativeAssets.Linux": "2.88.7"
+          "SkiaSharp.NativeAssets.Linux": "2.88.7",
+          "SkiaSharp.NativeAssets.WebAssembly": "2.88.7"
         },
         "runtime": {
           "lib/net6.0/Avalonia.Skia.dll": {
@@ -177,7 +182,8 @@
       "Avalonia.Win32/11.0.10": {
         "dependencies": {
           "Avalonia": "11.0.10",
-          "Avalonia.Angle.Windows.Natives": "2.1.0.2023020321"
+          "Avalonia.Angle.Windows.Natives": "2.1.0.2023020321",
+          "System.Numerics.Vectors": "4.5.0"
         },
         "runtime": {
           "lib/net6.0/Avalonia.Win32.dll": {
@@ -247,6 +253,7 @@
           }
         }
       },
+      "HarfBuzzSharp.NativeAssets.WebAssembly/7.3.0": {},
       "HarfBuzzSharp.NativeAssets.Win32/7.3.0": {
         "runtimeTargets": {
           "runtimes/win-arm64/native/libHarfBuzzSharp.dll": {
@@ -322,6 +329,7 @@
           }
         }
       },
+      "SkiaSharp.NativeAssets.WebAssembly/2.88.7": {},
       "SkiaSharp.NativeAssets.Win32/2.88.7": {
         "runtimeTargets": {
           "runtimes/win-arm64/native/libSkiaSharp.dll": {
@@ -341,6 +349,7 @@
           }
         }
       },
+      "System.ComponentModel.Annotations/4.5.0": {},
       "System.IO.Pipelines/6.0.0": {
         "runtime": {
           "lib/net6.0/System.IO.Pipelines.dll": {
@@ -349,6 +358,7 @@
           }
         }
       },
+      "System.Numerics.Vectors/4.5.0": {},
       "Tmds.DBus.Protocol/0.15.0": {
         "dependencies": {
           "System.IO.Pipelines": "6.0.0"
@@ -381,6 +391,13 @@
       "sha512": "sha512-Zlkkb8ipxrxNWVPCJgMO19fpcpYPP+bpOQ+jPtCFj8v+TzVvPdnGHuyv9IMvSHhhMfEpps4m4hjaP4FORQYVAA==",
       "path": "avalonia.angle.windows.natives/2.1.0.2023020321",
       "hashPath": "avalonia.angle.windows.natives.2.1.0.2023020321.nupkg.sha512"
+    },
+    "Avalonia.BuildServices/0.0.29": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-U4eJLQdoDNHXtEba7MZUCwrBErBTxFp6sUewXBOdAhU0Kwzwaa/EKFcYm8kpcysjzKtfB4S0S9n0uxKZFz/ikw==",
+      "path": "avalonia.buildservices/0.0.29",
+      "hashPath": "avalonia.buildservices.0.0.29.nupkg.sha512"
     },
     "Avalonia.Desktop/11.0.10": {
       "type": "package",
@@ -466,6 +483,13 @@
       "path": "harfbuzzsharp.nativeassets.macos/7.3.0",
       "hashPath": "harfbuzzsharp.nativeassets.macos.7.3.0.nupkg.sha512"
     },
+    "HarfBuzzSharp.NativeAssets.WebAssembly/7.3.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-cnl4I6P+VeujfSSD3ZrC5f0TrTGt9EKgCOoZ3LpgLI2xobBKLi5bxOaN2oY6B0xVXxQEhEaWBotg7AuECg00Iw==",
+      "path": "harfbuzzsharp.nativeassets.webassembly/7.3.0",
+      "hashPath": "harfbuzzsharp.nativeassets.webassembly.7.3.0.nupkg.sha512"
+    },
     "HarfBuzzSharp.NativeAssets.Win32/7.3.0": {
       "type": "package",
       "serviceable": true,
@@ -501,6 +525,13 @@
       "path": "skiasharp.nativeassets.macos/2.88.7",
       "hashPath": "skiasharp.nativeassets.macos.2.88.7.nupkg.sha512"
     },
+    "SkiaSharp.NativeAssets.WebAssembly/2.88.7": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-elmOOQTO0QXmnnHx7GliF7VNJqZkWgPqqPsXapEN0EEZJ9fGblYWmD6cqxTwaRTMCUFeLpn8+gTzY8j000MxZQ==",
+      "path": "skiasharp.nativeassets.webassembly/2.88.7",
+      "hashPath": "skiasharp.nativeassets.webassembly.2.88.7.nupkg.sha512"
+    },
     "SkiaSharp.NativeAssets.Win32/2.88.7": {
       "type": "package",
       "serviceable": true,
@@ -508,12 +539,26 @@
       "path": "skiasharp.nativeassets.win32/2.88.7",
       "hashPath": "skiasharp.nativeassets.win32.2.88.7.nupkg.sha512"
     },
+    "System.ComponentModel.Annotations/4.5.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-UxYQ3FGUOtzJ7LfSdnYSFd7+oEv6M8NgUatatIN2HxNtDdlcvFAf+VIq4Of9cDMJEJC0aSRv/x898RYhB4Yppg==",
+      "path": "system.componentmodel.annotations/4.5.0",
+      "hashPath": "system.componentmodel.annotations.4.5.0.nupkg.sha512"
+    },
     "System.IO.Pipelines/6.0.0": {
       "type": "package",
       "serviceable": true,
       "sha512": "sha512-mXX66shZ4xLlI3vNLaJ0lt8OIZdmXTvIqXRdQX5HLVGSkLhINLsVhyZuX2UdRFnOGkqnwmMUs40pIIQ7mna4+A==",
       "path": "system.io.pipelines/6.0.0",
       "hashPath": "system.io.pipelines.6.0.0.nupkg.sha512"
+    },
+    "System.Numerics.Vectors/4.5.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-QQTlPTl06J/iiDbJCiepZ4H//BVraReU4O4EoRw1U02H5TLUIT7xn3GnDp9AXPSlJUDyFs4uWjWafNX6WrAojQ==",
+      "path": "system.numerics.vectors/4.5.0",
+      "hashPath": "system.numerics.vectors.4.5.0.nupkg.sha512"
     },
     "Tmds.DBus.Protocol/0.15.0": {
       "type": "package",

@@ -5,301 +5,414 @@
         x:Class="Uno.Views.MainWindow"
         x:DataType="vm:MainViewModel"
         x:Name="root"
-        Title="Juego UNO - Multijugador LAN"
+        Title="UNO - Multijugador LAN"
+        Icon="avares://Uno/Assets/Cards/uno.png"
         WindowState="Maximized"
         CanResize="False">
 
 	<Window.Resources>
 		<vm:BitmapAssetValueConverter x:Key="VariableImageConverter"/>
+
+		<!-- Muestra de color para elegir el color del nombre -->
+		<DataTemplate x:Key="SwatchTemplate" DataType="models:PlayerColorOption">
+			<Button Classes="swatch"
+			        Classes.selected="{Binding IsSelected}"
+			        Command="{Binding Seleccionar}"
+			        ToolTip.Tip="{Binding Nombre}">
+				<Border Background="{Binding Hex}" Width="28" Height="28" CornerRadius="14"/>
+			</Button>
+		</DataTemplate>
+
+		<!-- Fila de la sala de espera (jugador sentado o lugar libre) -->
+		<DataTemplate x:Key="LobbySlotTemplate" DataType="models:LobbyJugador">
+			<Border CornerRadius="14" Padding="12,10" Background="#1AFFFFFF" BorderBrush="#26FFFFFF" BorderThickness="1">
+				<Grid ColumnDefinitions="Auto,*,Auto">
+					<Border Grid.Column="0" Width="40" Height="40" CornerRadius="20" Background="{Binding ColorHex}" IsVisible="{Binding !EsVacio}">
+						<TextBlock Text="{Binding Inicial}" Foreground="#14161C" FontSize="18" FontWeight="ExtraBold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+					</Border>
+					<Border Grid.Column="0" Width="40" Height="40" CornerRadius="20" BorderBrush="#55FFFFFF" BorderThickness="2" IsVisible="{Binding EsVacio}">
+						<TextBlock Text="?" Foreground="#80FFFFFF" FontSize="18" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+					</Border>
+
+					<TextBlock Grid.Column="1" Margin="14,0,0,0" VerticalAlignment="Center"
+					           Text="{Binding Nombre}" Foreground="{Binding ColorHex}"
+					           FontSize="18" FontWeight="Bold" TextTrimming="CharacterEllipsis"
+					           IsVisible="{Binding !EsVacio}"/>
+					<TextBlock Grid.Column="1" Margin="14,0,0,0" VerticalAlignment="Center"
+					           Text="Esperando jugador..." Foreground="#8A93A3"
+					           FontSize="16" FontStyle="Italic"
+					           IsVisible="{Binding EsVacio}"/>
+
+					<StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+						<Border Background="#FFD60A" CornerRadius="100" Padding="9,3" IsVisible="{Binding EsAnfitrion}">
+							<TextBlock Text="ANFITRIÓN" Foreground="#14161C" FontSize="11" FontWeight="ExtraBold"/>
+						</Border>
+						<Border Background="#33FFFFFF" CornerRadius="100" Padding="9,3" IsVisible="{Binding EsYo}">
+							<TextBlock Text="TÚ" Foreground="White" FontSize="11" FontWeight="ExtraBold"/>
+						</Border>
+					</StackPanel>
+				</Grid>
+			</Border>
+		</DataTemplate>
+
+		<!-- Panel de un oponente: avatar, nombre en su color, cuantas cartas tiene y el reverso de su mano -->
+		<DataTemplate x:Key="OpponentTemplate" DataType="models:Player">
+			<Grid HorizontalAlignment="Center" VerticalAlignment="Center">
+				<Border Classes="turnRing" CornerRadius="28" BorderBrush="#FFD60A" BorderThickness="4" Margin="-5"
+				        IsVisible="{Binding EsTurno}" IsHitTestVisible="False"/>
+				<Border Classes="panel" Padding="16,14" Width="236">
+					<StackPanel Spacing="12">
+						<StackPanel Orientation="Horizontal" Spacing="12" HorizontalAlignment="Center">
+							<Border Width="46" Height="46" CornerRadius="23" Background="{Binding ColorHex}">
+								<TextBlock Text="{Binding Inicial}" Foreground="#14161C" FontSize="21" FontWeight="ExtraBold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+							</Border>
+							<StackPanel VerticalAlignment="Center" Spacing="1">
+								<TextBlock Text="{Binding Name}" Foreground="{Binding ColorHex}" FontSize="18" FontWeight="ExtraBold" MaxWidth="150" TextTrimming="CharacterEllipsis"/>
+								<TextBlock Text="{Binding Mano.Count, StringFormat='Cartas: {0}'}" Foreground="#B8C0CC" FontSize="13" FontWeight="SemiBold"/>
+							</StackPanel>
+						</StackPanel>
+
+						<Viewbox StretchDirection="DownOnly" Stretch="Uniform" MaxWidth="204" Height="96" HorizontalAlignment="Center">
+							<ItemsControl ItemsSource="{Binding Mano}">
+								<ItemsControl.ItemsPanel>
+									<ItemsPanelTemplate>
+										<StackPanel Orientation="Horizontal" Spacing="-40"/>
+									</ItemsPanelTemplate>
+								</ItemsControl.ItemsPanel>
+								<ItemsControl.ItemTemplate>
+									<DataTemplate>
+										<Border Width="62" Height="93" CornerRadius="8" ClipToBounds="True" BoxShadow="-4 0 10 0 #66000000">
+											<Image Source="avares://Uno/Assets/Cards/uno.png" Stretch="Fill"/>
+										</Border>
+									</DataTemplate>
+								</ItemsControl.ItemTemplate>
+							</ItemsControl>
+						</Viewbox>
+
+						<Border Background="#FFD60A" CornerRadius="100" Padding="12,4" HorizontalAlignment="Center" IsVisible="{Binding TieneUnaCarta}">
+							<TextBlock Text="¡UNO!" Foreground="#14161C" FontSize="14" FontWeight="ExtraBold"/>
+						</Border>
+						<Border Background="#33FFFFFF" CornerRadius="100" Padding="12,4" HorizontalAlignment="Center" IsVisible="{Binding EsTurno}">
+							<TextBlock Text="JUGANDO..." Foreground="White" FontSize="12" FontWeight="ExtraBold"/>
+						</Border>
+					</StackPanel>
+				</Border>
+			</Grid>
+		</DataTemplate>
 	</Window.Resources>
 
 	<Grid>
-		<!-- Menu Principal con Formulario LAN -->
+		<!-- ============================================================= -->
+		<!-- MENU PRINCIPAL                                                -->
+		<!-- ============================================================= -->
 		<Grid IsVisible="{Binding MenuVisible}">
 			<Image Source="avares://Uno/Assets/background1.png" Stretch="UniformToFill" HorizontalAlignment="Center" VerticalAlignment="Center"/>
 
-			<Border Background="#CC1E1E1E" CornerRadius="16" Padding="30" HorizontalAlignment="Center" VerticalAlignment="Center" Width="380">
-				<StackPanel Spacing="15" HorizontalAlignment="Stretch">
-					<TextBlock Text="CONFIGURACIÓN DE JUGADOR" Foreground="White" FontSize="20" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,10"/>
+			<Grid ColumnDefinitions="52*,48*">
+				<ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+					<Border Classes="panel" Padding="32,28" Margin="24" Width="440" HorizontalAlignment="Center" VerticalAlignment="Center">
+						<StackPanel Spacing="18">
+							<StackPanel Spacing="6">
+								<Border Background="#FFD60A" CornerRadius="100" Padding="10,3" HorizontalAlignment="Left">
+									<TextBlock Text="MULTIJUGADOR EN RED LOCAL" Foreground="#14161C" FontSize="11" FontWeight="ExtraBold"/>
+								</Border>
+								<TextBlock Classes="titulo" Text="Únete a la mesa"/>
+								<TextBlock Classes="subtitulo" Text="Crea una partida nueva o entra con el ID que te compartió el anfitrión."/>
+							</StackPanel>
 
-					<!-- Nombre del Jugador -->
-					<StackPanel Spacing="5">
-						<TextBlock Text="Nombre del Jugador:" Foreground="#FFD700" FontWeight="Bold"/>
-						<TextBox Text="{Binding NombreUsuario}" Watermark="Ej. Rodrigo" CornerRadius="8" Padding="10"/>
-					</StackPanel>
+							<!-- Nombre -->
+							<StackPanel Spacing="6">
+								<TextBlock Classes="etiqueta" Text="TU NOMBRE"/>
+								<TextBox Classes="campo" Text="{Binding NombreUsuario}" Watermark="Ej. Rodrigo" MaxLength="20"/>
+							</StackPanel>
 
-					<!-- IP del Servidor -->
-					<StackPanel Spacing="5">
-						<TextBlock Text="IP del Servidor (Computadora Host):" Foreground="#FFD700" FontWeight="Bold"/>
-						<TextBox Text="{Binding IPServidor}" Watermark="Ej. 192.168.1.75" CornerRadius="8" Padding="10"/>
-					</StackPanel>
+							<!-- Color del nombre -->
+							<StackPanel Spacing="8">
+								<TextBlock Classes="etiqueta" Text="TU COLOR EN LA MESA"/>
+								<ItemsControl ItemsSource="{Binding ColoresDisponibles}" ItemTemplate="{StaticResource SwatchTemplate}">
+									<ItemsControl.ItemsPanel>
+										<ItemsPanelTemplate>
+											<WrapPanel/>
+										</ItemsPanelTemplate>
+									</ItemsControl.ItemsPanel>
+								</ItemsControl>
+								<Border Classes="pill" Padding="8,6,16,6" HorizontalAlignment="Left">
+									<StackPanel Orientation="Horizontal" Spacing="10">
+										<Border Width="32" Height="32" CornerRadius="16" Background="{Binding ColorJugadorHex}">
+											<TextBlock Text="{Binding InicialUsuario}" Foreground="#14161C" FontSize="15" FontWeight="ExtraBold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+										</Border>
+										<TextBlock Text="{Binding NombreUsuario}" Foreground="{Binding ColorJugadorHex}" FontSize="16" FontWeight="ExtraBold" VerticalAlignment="Center" MaxWidth="200" TextTrimming="CharacterEllipsis"/>
+										<TextBlock Text="{Binding ColorJugadorNombre}" Classes="ayuda" VerticalAlignment="Center"/>
+									</StackPanel>
+								</Border>
+							</StackPanel>
 
-					<!-- ID de Partida -->
-					<StackPanel Spacing="5">
-						<TextBlock Text="ID de Partida (Déjalo vacío para crear nueva):" Foreground="#FFD700" FontWeight="Bold"/>
-						<TextBox Text="{Binding IDPartidaInput}" Watermark="Ej. 1 (Solo si te vas a unirse)" CornerRadius="8" Padding="10"/>
-					</StackPanel>
+							<!-- IP -->
+							<StackPanel Spacing="6">
+								<TextBlock Classes="etiqueta" Text="IP DEL SERVIDOR"/>
+								<TextBox Classes="campo" Text="{Binding IPServidor}" Watermark="Ej. 192.168.1.75"/>
+								<TextBlock Classes="ayuda" Text="La dirección de la computadora que ejecuta la API (el anfitrión)."/>
+							</StackPanel>
 
-					<!-- Botón Entrar -->
-					<Button Content="¡ JUGAR !"
-					        Command="{Binding StartGame}"
-					        Padding="15"
-					        FontSize="22"
-					        FontWeight="Bold"
-					        Background="#E74C3C"
-					        Foreground="White"
-					        CornerRadius="12"
-					        HorizontalAlignment="Stretch"
-					        HorizontalContentAlignment="Center"
-					        Margin="0,15,0,0"
-					        Cursor="Hand"/>
+							<!-- ID de partida -->
+							<StackPanel Spacing="6">
+								<TextBlock Classes="etiqueta" Text="ID DE PARTIDA (OPCIONAL)"/>
+								<TextBox Classes="campo" Text="{Binding IDPartidaInput}" Watermark="Ej. 1"/>
+								<TextBlock Classes="ayuda" Text="Déjalo vacío para crear una partida nueva."/>
+							</StackPanel>
 
-					<!-- NUEVO: errores de conexion / union a partida -->
-					<TextBlock Text="{Binding MensajeMenu}" Foreground="#FF6B6B" FontSize="14" TextWrapping="Wrap" HorizontalAlignment="Center" TextAlignment="Center"/>
-				</StackPanel>
-			</Border>
+							<Button Classes="btn cta"
+							        Content="{Binding TextoBotonEntrar}"
+							        Command="{Binding StartGame}"
+							        IsEnabled="{Binding !EstaConectando}"
+							        FontSize="20"
+							        Padding="16"
+							        HorizontalAlignment="Stretch"
+							        Margin="0,4,0,0"/>
+
+							<Border Classes="callout" IsVisible="{Binding MensajeMenu, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+								<TextBlock Classes="error" Text="{Binding MensajeMenu}"/>
+							</Border>
+						</StackPanel>
+					</Border>
+				</ScrollViewer>
+			</Grid>
 		</Grid>
 
-		<!-- NUEVO: Sala de espera (lobby) -->
+		<!-- ============================================================= -->
+		<!-- SALA DE ESPERA                                                -->
+		<!-- ============================================================= -->
 		<Grid IsVisible="{Binding EnSala}">
 			<Image Source="avares://Uno/Assets/background1.png" Stretch="UniformToFill" HorizontalAlignment="Center" VerticalAlignment="Center"/>
 
-			<Border Background="#CC1E1E1E" CornerRadius="16" Padding="30" HorizontalAlignment="Center" VerticalAlignment="Center" Width="460">
-				<StackPanel Spacing="15" HorizontalAlignment="Stretch">
-					<TextBlock Text="SALA DE ESPERA" Foreground="White" FontSize="22" FontWeight="Bold" HorizontalAlignment="Center"/>
+			<Grid ColumnDefinitions="52*,48*">
+				<ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+					<Border Classes="panel" Padding="32,28" Margin="24" Width="440" HorizontalAlignment="Center" VerticalAlignment="Center">
+						<StackPanel Spacing="18">
+							<StackPanel Spacing="6">
+								<TextBlock Classes="titulo" Text="Sala de espera"/>
+								<TextBlock Classes="subtitulo" Text="Comparte este ID con los demás jugadores para que se unan."/>
+							</StackPanel>
 
-					<TextBlock Text="{Binding SalaTexto}" Foreground="White" FontSize="18" TextWrapping="Wrap"/>
+							<!-- ID grande + copiar -->
+							<Border CornerRadius="16" Background="#0F131B" BorderBrush="#40FFD60A" BorderThickness="1" Padding="18,12">
+								<Grid ColumnDefinitions="*,Auto">
+									<StackPanel>
+										<TextBlock Classes="etiqueta" Text="ID DE PARTIDA"/>
+										<TextBlock Text="{Binding PartidaIdTexto}" Foreground="#FFD60A" FontSize="44" FontWeight="ExtraBold"/>
+									</StackPanel>
+									<Button Grid.Column="1" Classes="btn ghost" Content="Copiar ID" Padding="14,10" FontSize="14" VerticalAlignment="Center" Click="CopiarId_Click"/>
+								</Grid>
+							</Border>
 
-					<Button Content="¡ INICIAR PARTIDA !"
-					        Command="{Binding IniciarPartida}"
-					        IsVisible="{Binding PuedeIniciar}"
-					        Padding="15"
-					        FontSize="20"
-					        FontWeight="Bold"
-					        Background="#2ECC71"
-					        Foreground="White"
-					        CornerRadius="12"
-					        HorizontalAlignment="Stretch"
-					        HorizontalContentAlignment="Center"
-					        Cursor="Hand"/>
+							<!-- Jugadores -->
+							<StackPanel Spacing="8">
+								<Grid ColumnDefinitions="*,Auto">
+									<TextBlock Classes="etiqueta" Text="JUGADORES" VerticalAlignment="Center"/>
+									<TextBlock Grid.Column="1" Classes="ayuda" Text="{Binding ContadorSala}" VerticalAlignment="Center"/>
+								</Grid>
+								<ItemsControl ItemsSource="{Binding JugadoresSala}" ItemTemplate="{StaticResource LobbySlotTemplate}">
+									<ItemsControl.ItemsPanel>
+										<ItemsPanelTemplate>
+											<StackPanel Spacing="8"/>
+										</ItemsPanelTemplate>
+									</ItemsControl.ItemsPanel>
+								</ItemsControl>
+							</StackPanel>
 
-					<TextBlock Text="Esperando a que el anfitrión inicie la partida..."
-					           IsVisible="{Binding !EsHost}"
-					           Foreground="#FFD700" FontSize="16" FontWeight="Bold" HorizontalAlignment="Center"/>
+							<!-- Color -->
+							<StackPanel Spacing="8">
+								<TextBlock Classes="etiqueta" Text="TU COLOR EN LA MESA"/>
+								<ItemsControl ItemsSource="{Binding ColoresDisponibles}" ItemTemplate="{StaticResource SwatchTemplate}">
+									<ItemsControl.ItemsPanel>
+										<ItemsPanelTemplate>
+											<WrapPanel/>
+										</ItemsPanelTemplate>
+									</ItemsControl.ItemsPanel>
+								</ItemsControl>
+							</StackPanel>
 
-					<TextBlock Text="{Binding MensajeMenu}" Foreground="#FF6B6B" FontSize="14" TextWrapping="Wrap" HorizontalAlignment="Center" TextAlignment="Center"/>
+							<!-- Acciones -->
+							<Button Classes="btn ok"
+							        Content="INICIAR PARTIDA"
+							        Command="{Binding IniciarPartida}"
+							        IsVisible="{Binding PuedeIniciar}"
+							        FontSize="20" Padding="16"
+							        HorizontalAlignment="Stretch"/>
 
-					<Button Content="Salir"
-					        Command="{Binding QuitToMainMenu}"
-					        Padding="12"
-					        FontSize="16"
-					        FontWeight="Bold"
-					        Background="#E74C3C"
-					        Foreground="White"
-					        CornerRadius="10"
-					        HorizontalAlignment="Stretch"
-					        HorizontalContentAlignment="Center"
-					        Cursor="Hand"/>
-				</StackPanel>
-			</Border>
+							<Border Classes="pill" HorizontalAlignment="Center" IsVisible="{Binding HostEsperaJugadores}">
+								<TextBlock Text="Necesitas al menos 2 jugadores para empezar" Foreground="White" FontSize="14" FontWeight="SemiBold"/>
+							</Border>
+							<Border Classes="pill" HorizontalAlignment="Center" IsVisible="{Binding !EsHost}">
+								<TextBlock Text="Esperando a que el anfitrión inicie la partida..." Foreground="#FFD60A" FontSize="14" FontWeight="SemiBold"/>
+							</Border>
+
+							<Border Classes="callout" IsVisible="{Binding MensajeMenu, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+								<TextBlock Classes="error" Text="{Binding MensajeMenu}"/>
+							</Border>
+
+							<Button Classes="btn muted"
+							        Content="Salir de la sala"
+							        Command="{Binding QuitToMainMenu}"
+							        HorizontalAlignment="Stretch"/>
+						</StackPanel>
+					</Border>
+				</ScrollViewer>
+			</Grid>
 		</Grid>
 
-		<!-- Tablero de juego -->
+		<!-- ============================================================= -->
+		<!-- TABLERO DE JUEGO                                              -->
+		<!-- ============================================================= -->
 		<Grid IsVisible="{Binding JuegoIniciado}" RowDefinitions="Auto, *">
 			<Image Grid.RowSpan="2" Source="avares://Uno/Assets/background.png" Stretch="UniformToFill" HorizontalAlignment="Center" VerticalAlignment="Center"/>
 
-			<!-- Contenedor superior para el Banner y el Botón de Opciones -->
-			<Grid Grid.Row="0">
-				<!-- Banner de estado superior (Centrado) -->
-				<Border Background="#CC1E1E1E" Padding="12">
-					<TextBlock Text="{Binding EstatusMensaje}" Foreground="White" FontSize="20" FontWeight="Bold" HorizontalAlignment="Center"/>
-				</Border>
+			<!-- Banner de estado -->
+			<Border Grid.Row="0" Classes="banner"
+			        Classes.mine="{Binding EsMiTurno}"
+			        Classes.alert="{Binding TienePendientes}"
+			        Padding="12,10">
+				<Grid ColumnDefinitions="220,*,220">
+					<Button Grid.Column="0" Classes="btn ghost" Command="{Binding TogglePauseMenu}" Padding="14,9" HorizontalAlignment="Left" VerticalAlignment="Center">
+						<StackPanel Orientation="Horizontal" Spacing="10">
+							<Path Data="M0,3 L20,3 M0,10 L20,10 M0,17 L20,17" Stroke="White" StrokeThickness="2.5" StrokeLineCap="Round" Width="20" Height="20" VerticalAlignment="Center"/>
+							<TextBlock Text="OPCIONES" Foreground="White" FontSize="14" FontWeight="ExtraBold" VerticalAlignment="Center"/>
+						</StackPanel>
+					</Button>
 
-				<!-- NUEVO: Botón de Opciones (Alineado a la izquierda) -->
-				<Button Command="{Binding TogglePauseMenu}"
-				        Background="Transparent"
-				        Padding="15,10"
-				        HorizontalAlignment="Left"
-				        VerticalAlignment="Center"
-				        Cursor="Hand"
-				        BorderThickness="0">
-					<StackPanel Orientation="Horizontal" Spacing="8">
-						<!-- Icono de hamburguesa básico con caracteres Unicode -->
-						<TextBlock Text="☰" Foreground="White" FontSize="24" FontWeight="Bold" VerticalAlignment="Center"/>
-						<TextBlock Text="OPCIONES" Foreground="White" FontSize="16" FontWeight="Bold" VerticalAlignment="Center"/>
-					</StackPanel>
-				</Button>
-			</Grid>
+					<TextBlock Grid.Column="1" Text="{Binding EstatusMensaje}" Foreground="White" FontSize="19" FontWeight="Bold"
+					           HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap"/>
 
-			<!-- Tablero principal -->
-			<Grid Grid.Row="1" ColumnDefinitions="250, *, 250" RowDefinitions="*, Auto">
+					<Border Grid.Column="2" Classes="pill" HorizontalAlignment="Right" VerticalAlignment="Center">
+						<TextBlock Text="{Binding SentidoTexto}" Foreground="White" FontSize="13" FontWeight="SemiBold"/>
+					</Border>
+				</Grid>
+			</Border>
 
-				<!-- Mano izquierda (90°) -->
-				<Border Grid.Column="0" Grid.Row="0" Background="#88000000" Padding="10" Margin="10" CornerRadius="8" VerticalAlignment="Center" RenderTransformOrigin="50%,50%">
-					<Border.RenderTransform>
-						<RotateTransform Angle="90"/>
-					</Border.RenderTransform>
-					<StackPanel>
-						<TextBlock Text="{Binding LeftPlayer.Name, StringFormat='Mano de {0}'}" Foreground="#FFD700" FontWeight="Bold" FontSize="16" HorizontalAlignment="Center" Margin="0,0,0,5"/>
-						<ScrollViewer HorizontalScrollBarVisibility="Hidden"
-						              VerticalScrollBarVisibility="Disabled"
-						              MaxWidth="300"
-						              PointerWheelChanged="EfectoHoverEnMano">
-							<ItemsControl ItemsSource="{Binding LeftPlayer.Mano}">
-								<ItemsControl.ItemsPanel>
-									<ItemsPanelTemplate>
-										<StackPanel Orientation="Horizontal" Spacing="8"/>
-									</ItemsPanelTemplate>
-								</ItemsControl.ItemsPanel>
-								<ItemsControl.ItemTemplate>
-									<DataTemplate>
-										<Image Source="avares://Uno/Assets/Cards/uno.png" Width="65" Height="100"/>
-									</DataTemplate>
-								</ItemsControl.ItemTemplate>
-							</ItemsControl>
-						</ScrollViewer>
-					</StackPanel>
-				</Border>
+			<!-- Mesa -->
+			<Grid Grid.Row="1" ColumnDefinitions="260, *, 260" RowDefinitions="*, Auto">
 
-				<!-- Zona Central: Mazo, Pozo e Indicador de Color Activo -->
-				<StackPanel Grid.Column="1" Grid.Row="0" Spacing="15" HorizontalAlignment="Center" VerticalAlignment="Center">
+				<!-- Oponente izquierdo -->
+				<ContentControl Grid.Column="0" Grid.Row="0" Content="{Binding LeftPlayer}" ContentTemplate="{StaticResource OpponentTemplate}" VerticalAlignment="Center"/>
 
-					<!-- Indicador de Color Activo -->
-					<StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center" VerticalAlignment="Center">
-						<TextBlock Text="COLOR A JUGAR:" Foreground="White" FontSize="16" FontWeight="Bold" VerticalAlignment="Center"/>
-						<Border Background="{Binding ActiveColorHex}" Width="30" Height="30" CornerRadius="15" BorderBrush="White" BorderThickness="2"/>
-					</StackPanel>
+				<!-- Centro: color activo, mazo, carta en mesa y acciones -->
+				<StackPanel Grid.Column="1" Grid.Row="0" Spacing="16" HorizontalAlignment="Center" VerticalAlignment="Center">
 
-					<StackPanel Orientation="Horizontal" Spacing="40" HorizontalAlignment="Center">
+					<!-- Color activo (con nombre, para no depender solo del color) -->
+					<Border Classes="pill" Background="#99000000" Padding="10,6,18,6" HorizontalAlignment="Center">
+						<StackPanel Orientation="Horizontal" Spacing="10">
+							<Border Width="24" Height="24" CornerRadius="12" Background="{Binding ActiveColorHex}" BorderBrush="White" BorderThickness="2"/>
+							<TextBlock Text="{Binding ColorActualNombre, StringFormat='COLOR ACTIVO: {0}'}" Foreground="White" FontSize="14" FontWeight="ExtraBold" VerticalAlignment="Center"/>
+						</StackPanel>
+					</Border>
+
+					<!-- Castigo acumulado -->
+					<Border Background="#D9A31224" BorderBrush="#FFD60A" BorderThickness="2" CornerRadius="100" Padding="18,6" HorizontalAlignment="Center" IsVisible="{Binding HayPendientes}">
+						<TextBlock Text="{Binding PendientesTexto}" Foreground="White" FontSize="16" FontWeight="ExtraBold"/>
+					</Border>
+
+					<StackPanel Orientation="Horizontal" Spacing="44" HorizontalAlignment="Center">
+
 						<!-- Mazo -->
-						<StackPanel HorizontalAlignment="Center">
-							<TextBlock Text=" " Foreground="Transparent" FontSize="16" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,8"/>
-							<Button Command="{Binding DrawCard}"
-							        Background="Transparent"
-							        Padding="0"
-							        BorderThickness="0"
-							        Cursor="Hand"
-							        IsVisible="{Binding HayCartasEnMazo}">
+						<StackPanel Spacing="8" HorizontalAlignment="Center">
+							<Grid Width="118" Height="173">
+								<!-- mazo vacio -->
+								<Border IsVisible="{Binding !HayCartasEnMazo}" Width="110" Height="165" CornerRadius="12" Background="#33000000" BorderBrush="#66FFFFFF" BorderThickness="2" HorizontalAlignment="Left" VerticalAlignment="Top">
+									<TextBlock Text="MAZO&#x0A;VACÍO" Foreground="#CCFFFFFF" FontSize="14" FontWeight="Bold" TextAlignment="Center" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+								</Border>
 
-								<Image Source="avares://Uno/Assets/Cards/uno.png" Width="100" Height="150"/>
+								<!-- pila de cartas -->
+								<Grid IsVisible="{Binding HayCartasEnMazo}">
+									<Border Width="110" Height="165" CornerRadius="12" Background="#FF0B0B0B" Margin="8,8,0,0" HorizontalAlignment="Left" VerticalAlignment="Top" Opacity="0.7"/>
+									<Border Width="110" Height="165" CornerRadius="12" Background="#FF0B0B0B" Margin="4,4,0,0" HorizontalAlignment="Left" VerticalAlignment="Top" Opacity="0.85"/>
+									<Button Classes="carta mazo"
+									        Classes.turno="{Binding EsMiTurno}"
+									        Command="{Binding DrawCard}"
+									        HorizontalAlignment="Left" VerticalAlignment="Top"
+									        ToolTip.Tip="Robar una carta">
+										<Border Width="110" Height="165" CornerRadius="12" ClipToBounds="True" BoxShadow="0 10 24 0 #80000000">
+											<Image Source="avares://Uno/Assets/Cards/uno.png" Stretch="Fill"/>
+										</Border>
+									</Button>
+								</Grid>
 
-							</Button>
+								<Border IsVisible="{Binding HayCartasEnMazo}" Background="#FFD60A" CornerRadius="100" MinWidth="30" Height="30" Padding="8,0" HorizontalAlignment="Right" VerticalAlignment="Top" IsHitTestVisible="False">
+									<TextBlock Text="{Binding CartasEnMazo}" Foreground="#14161C" FontSize="14" FontWeight="ExtraBold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+								</Border>
+							</Grid>
+							<TextBlock Text="MAZO" Foreground="White" FontSize="13" FontWeight="ExtraBold" HorizontalAlignment="Center"/>
 						</StackPanel>
 
-						<!-- Carta en Mesa -->
-						<StackPanel HorizontalAlignment="Center">
-							<TextBlock Text="Carta en Mesa" Foreground="Transparent" FontSize="16" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,8"/>
-							<Image Source="{Binding TopCard.ImagePath, Converter={StaticResource VariableImageConverter}}" Width="100" Height="150"/>
+						<!-- Carta en mesa, con aro del color activo -->
+						<StackPanel Spacing="8" HorizontalAlignment="Center">
+							<Border Width="118" Height="173" CornerRadius="16" BorderBrush="{Binding ActiveColorHex}" BorderThickness="4" HorizontalAlignment="Center" BoxShadow="0 12 30 0 #99000000">
+								<Border CornerRadius="12" ClipToBounds="True" HorizontalAlignment="Center" VerticalAlignment="Center" Width="110" Height="165">
+									<Image Source="{Binding TopCard.ImagePath, Converter={StaticResource VariableImageConverter}}" Stretch="Fill"/>
+								</Border>
+							</Border>
+							<TextBlock Text="EN MESA" Foreground="White" FontSize="13" FontWeight="ExtraBold" HorizontalAlignment="Center"/>
 						</StackPanel>
 					</StackPanel>
 
-					<!-- Botones especiales: Pasar Turno / Tomar Castigo -->
-					<StackPanel Orientation="Horizontal" Spacing="15" HorizontalAlignment="Center">
+					<!-- Acciones del turno -->
+					<StackPanel Orientation="Horizontal" Spacing="14" HorizontalAlignment="Center">
+						<Grid IsVisible="{Binding CanShoutUno}">
+							<Border Classes="turnRing" CornerRadius="18" BorderBrush="#FFD60A" BorderThickness="3" Margin="-5" IsHitTestVisible="False"/>
+							<Button Classes="btn warn" Content="¡UNO!" Command="{Binding DecirUno}" FontSize="22" Padding="34,10"/>
+						</Grid>
 
-						<!-- DECIR UNO -->
-						<Button Content="¡ UNO !"
-						        Command="{Binding DecirUno}"
-						        IsVisible="{Binding CanShoutUno}"
-						        Padding="30,10"
-						        Background="#F39C12"
-						        Foreground="White"
-						        FontWeight="Bold"
-						        CornerRadius="8"
-						        Cursor="Hand"/>
+						<Button Classes="btn muted" Content="Pasar turno" Command="{Binding PasarTurno}" IsVisible="{Binding PuedePasar}"/>
 
-						<Button Content="Pasar Turno"
-						        Command="{Binding PasarTurno}"
-						        IsVisible="{Binding PuedePasar}"
-						        Padding="20,10"
-						        Background="#7F8C8D"
-						        Foreground="White"
-						        FontWeight="Bold"
-						        CornerRadius="8"
-						        Cursor="Hand"/>
-
-						<Button Content="{Binding BotonPenalizacion}"
-						        Command="{Binding TomarPenalizacion}"
-						        IsVisible="{Binding TienePendientes}"
-						        Padding="20,10"
-						        Background="#E74C3C"
-						        Foreground="White"
-						        FontWeight="Bold"
-						        CornerRadius="8"
-						        Cursor="Hand"/>
+						<Button Classes="btn cta" Content="{Binding BotonPenalizacion}" Command="{Binding TomarPenalizacion}" IsVisible="{Binding TienePendientes}"/>
 					</StackPanel>
 				</StackPanel>
 
-				<!-- Mano derecha (-90°) -->
-				<Border Grid.Column="2" Grid.Row="0" Background="#88000000" Padding="10" Margin="10" CornerRadius="8" VerticalAlignment="Center" RenderTransformOrigin="50%,50%">
-					<Border.RenderTransform>
-						<RotateTransform Angle="-90"/>
-					</Border.RenderTransform>
-					<StackPanel>
-						<TextBlock Text="{Binding RightPlayer.Name, StringFormat='Mano de {0}'}" Foreground="#FFD700" FontWeight="Bold" FontSize="16" HorizontalAlignment="Center" Margin="0,0,0,5"/>
-						<ScrollViewer HorizontalScrollBarVisibility="Hidden"
-						              VerticalScrollBarVisibility="Disabled"
-						              MaxWidth="300"
-						              PointerWheelChanged="EfectoHoverEnMano">
-							<ItemsControl ItemsSource="{Binding RightPlayer.Mano}">
-								<ItemsControl.ItemsPanel>
-									<ItemsPanelTemplate>
-										<StackPanel Orientation="Horizontal" Spacing="8"/>
-									</ItemsPanelTemplate>
-								</ItemsControl.ItemsPanel>
-								<ItemsControl.ItemTemplate>
-									<DataTemplate>
-										<Image Source="avares://Uno/Assets/Cards/uno.png" Width="65" Height="100"/>
-									</DataTemplate>
-								</ItemsControl.ItemTemplate>
-							</ItemsControl>
-						</ScrollViewer>
-					</StackPanel>
-				</Border>
+				<!-- Oponente derecho -->
+				<ContentControl Grid.Column="2" Grid.Row="0" Content="{Binding RightPlayer}" ContentTemplate="{StaticResource OpponentTemplate}" VerticalAlignment="Center"/>
 
-				<!-- Mano del jugador en turno (ABAJO) -->
-				<Border Grid.Column="0" Grid.ColumnSpan="3" Grid.Row="1" Background="#DD111111" Padding="20, 40" Margin="0,10,0,0">
-					<StackPanel HorizontalAlignment="Center">
-						<TextBlock Text="{Binding BottomPlayer.Name, StringFormat='TUS CARTAS: {0}'}" Foreground="#3498DB" FontWeight="Bold" FontSize="20" HorizontalAlignment="Center" Margin="0,0,0,8"/>
-						<ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
-							<ItemsControl ItemsSource="{Binding BottomPlayer.Mano}">
+				<!-- Mi mano -->
+				<Border Grid.Column="0" Grid.ColumnSpan="3" Grid.Row="1"
+				        Classes="miMano"
+				        Classes.turno="{Binding EsMiTurno}"
+				        Background="#E6101319" BorderBrush="#2EFFFFFF" BorderThickness="0,1,0,0"
+				        Padding="20,14,20,12">
+					<StackPanel Spacing="4">
+						<Grid ColumnDefinitions="*,Auto,*">
+							<StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12" HorizontalAlignment="Center">
+								<Border Width="38" Height="38" CornerRadius="19" Background="{Binding BottomPlayer.ColorHex}" VerticalAlignment="Center">
+									<TextBlock Text="{Binding BottomPlayer.Inicial}" Foreground="#14161C" FontSize="18" FontWeight="ExtraBold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+								</Border>
+								<TextBlock Text="{Binding BottomPlayer.Name}" Foreground="{Binding BottomPlayer.ColorHex}" FontSize="22" FontWeight="ExtraBold" VerticalAlignment="Center" MaxWidth="300" TextTrimming="CharacterEllipsis"/>
+								<TextBlock Text="{Binding BottomPlayer.Mano.Count, StringFormat='· {0} cartas'}" Foreground="#B8C0CC" FontSize="15" FontWeight="SemiBold" VerticalAlignment="Center"/>
+							</StackPanel>
+
+							<Border Grid.Column="2" HorizontalAlignment="Right" VerticalAlignment="Center">
+								<Grid>
+									<Border Background="#15803D" CornerRadius="100" Padding="16,6" IsVisible="{Binding EsMiTurno}">
+										<TextBlock Text="¡ES TU TURNO!" Foreground="White" FontSize="14" FontWeight="ExtraBold"/>
+									</Border>
+									<Border Background="#33FFFFFF" CornerRadius="100" Padding="16,6" IsVisible="{Binding !EsMiTurno}">
+										<TextBlock Text="Espera tu turno" Foreground="#D5DAE3" FontSize="14" FontWeight="SemiBold"/>
+									</Border>
+								</Grid>
+							</Border>
+						</Grid>
+
+						<ScrollViewer HorizontalAlignment="Center" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" PointerWheelChanged="EfectoHoverEnMano">
+							<ItemsControl ItemsSource="{Binding BottomPlayer.Mano}" Margin="8,46,8,18">
 								<ItemsControl.ItemsPanel>
 									<ItemsPanelTemplate>
-										<StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center"/>
+										<StackPanel Orientation="Horizontal" Spacing="12" HorizontalAlignment="Center"/>
 									</ItemsPanelTemplate>
 								</ItemsControl.ItemsPanel>
 								<ItemsControl.ItemTemplate>
 									<DataTemplate DataType="models:Card">
-
-										<Button Command="{Binding OnCardClicked}"
-										        Background="Transparent"
-										        Margin="0, 15"
-										        Padding="0"
-										        BorderThickness="0"
-										        Cursor="Hand"
+										<Button Classes="carta"
 										        Classes.playable="{Binding esJugable}"
-										        RenderTransformOrigin="50%,50%">
-
-											<Button.Styles>
-												<!-- Estado normal de todas las cartas -->
-												<Style Selector="Button">
-													<Setter Property="RenderTransform" Value="scale(1.0)"/>
-													<Setter Property="ZIndex" Value="0"/>
-													<Setter Property="Transitions">
-														<Transitions>
-															<TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.15"/>
-														</Transitions>
-													</Setter>
-												</Style>
-
-												<!-- Estado Hover SÓLO cuando la carta tiene la clase 'playable' -->
-												<Style Selector="Button.playable:pointerover">
-													<Setter Property="RenderTransform" Value="scale(1.1)"/>
-													<Setter Property="ZIndex" Value="1"/>
-													<!-- La pone por encima de las demás cartas -->
-												</Style>
-											</Button.Styles>
-
-											<Image Source="{Binding ImagePath, Converter={StaticResource VariableImageConverter}}" Width="100" Height="140"/>
+										        Command="{Binding OnCardClicked}">
+											<Border Classes="cara" Width="110" Height="165" CornerRadius="12" ClipToBounds="True" BorderThickness="3">
+												<Image Source="{Binding ImagePath, Converter={StaticResource VariableImageConverter}}" Stretch="Uniform"/>
+											</Border>
 										</Button>
 									</DataTemplate>
 								</ItemsControl.ItemTemplate>
@@ -310,149 +423,95 @@
 			</Grid>
 		</Grid>
 
-		<!-- Modal de selección de colores -->
-		<Grid IsVisible="{Binding ColorElegidoVisible}"
-		      Background="#AA000000"
-		      IsHitTestVisible="True"
-		      HorizontalAlignment="Stretch"
-		      VerticalAlignment="Stretch">
-
-			<Border Background="#2D2D30"
-			        CornerRadius="16"
-			        Padding="30"
-			        HorizontalAlignment="Center"
-			        VerticalAlignment="Center"
-			        BorderBrush="White"
-			        BorderThickness="2"
-			        IsHitTestVisible="True">
-
+		<!-- ============================================================= -->
+		<!-- MODAL: ELEGIR COLOR (comodin)                                 -->
+		<!-- ============================================================= -->
+		<Grid IsVisible="{Binding ColorElegidoVisible}" Background="#B3000000">
+			<Border Classes="panel" Padding="32,28" HorizontalAlignment="Center" VerticalAlignment="Center">
 				<StackPanel Spacing="20" HorizontalAlignment="Center">
-					<TextBlock Text="¡ELIGE UN COLOR!" Foreground="White" FontSize="26" FontWeight="Bold" HorizontalAlignment="Center"/>
+					<StackPanel Spacing="4">
+						<TextBlock Classes="titulo" Text="¡Elige un color!" HorizontalAlignment="Center"/>
+						<TextBlock Classes="subtitulo" Text="El siguiente jugador deberá seguir este color." HorizontalAlignment="Center" TextAlignment="Center"/>
+					</StackPanel>
 
-					<WrapPanel Width="280" Height="280" HorizontalAlignment="Center" VerticalAlignment="Center">
-						<Button Command="{Binding SeleccionarColor}" CommandParameter="Red"
-						        Width="120" Height="120" Margin="10"
-						        Background="#E74C3C" Foreground="White"
-						        FontSize="18" FontWeight="Bold"
-						        Content="ROJO" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-						        CornerRadius="12" Cursor="Hand" IsHitTestVisible="True"/>
-
-						<Button Command="{Binding SeleccionarColor}" CommandParameter="Yellow"
-						        Width="120" Height="120" Margin="10"
-						        Background="#F1C40F" Foreground="Black"
-						        FontSize="18" FontWeight="Bold"
-						        Content="AMARILLO" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-						        CornerRadius="12" Cursor="Hand" IsHitTestVisible="True"/>
-
-						<Button Command="{Binding SeleccionarColor}" CommandParameter="Blue"
-						        Width="120" Height="120" Margin="10"
-						        Background="#3498DB" Foreground="White"
-						        FontSize="18" FontWeight="Bold"
-						        Content="AZUL" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-						        CornerRadius="12" Cursor="Hand" IsHitTestVisible="True"/>
-
-						<Button Command="{Binding SeleccionarColor}" CommandParameter="Green"
-						        Width="120" Height="120" Margin="10"
-						        Background="#2ECC71" Foreground="White"
-						        FontSize="18" FontWeight="Bold"
-						        Content="VERDE" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-						        CornerRadius="12" Cursor="Hand" IsHitTestVisible="True"/>
-					</WrapPanel>
+					<Grid ColumnDefinitions="Auto,Auto" RowDefinitions="Auto,Auto" HorizontalAlignment="Center">
+						<Button Grid.Row="0" Grid.Column="0" Classes="ficha" Command="{Binding SeleccionarColor}" CommandParameter="Red">
+							<Border Background="#ED2939" CornerRadius="18" Width="150" Height="110">
+								<TextBlock Text="ROJO" Foreground="White" FontSize="22" FontWeight="ExtraBold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+							</Border>
+						</Button>
+						<Button Grid.Row="0" Grid.Column="1" Classes="ficha" Command="{Binding SeleccionarColor}" CommandParameter="Yellow">
+							<Border Background="#FFD60A" CornerRadius="18" Width="150" Height="110">
+								<TextBlock Text="AMARILLO" Foreground="#14161C" FontSize="22" FontWeight="ExtraBold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+							</Border>
+						</Button>
+						<Button Grid.Row="1" Grid.Column="0" Classes="ficha" Command="{Binding SeleccionarColor}" CommandParameter="Blue">
+							<Border Background="#2D7FF9" CornerRadius="18" Width="150" Height="110">
+								<TextBlock Text="AZUL" Foreground="White" FontSize="22" FontWeight="ExtraBold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+							</Border>
+						</Button>
+						<Button Grid.Row="1" Grid.Column="1" Classes="ficha" Command="{Binding SeleccionarColor}" CommandParameter="Green">
+							<Border Background="#1FAA59" CornerRadius="18" Width="150" Height="110">
+								<TextBlock Text="VERDE" Foreground="#0B1F13" FontSize="22" FontWeight="ExtraBold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+							</Border>
+						</Button>
+					</Grid>
 				</StackPanel>
 			</Border>
 		</Grid>
 
-		<!-- Pantalla de victoria y puntos -->
-		<Grid IsVisible="{Binding JuegoTerminado}" Background="#CC000000">
-			<Border Background="#1E1E1E" CornerRadius="20" Padding="40" HorizontalAlignment="Center" VerticalAlignment="Center" BorderBrush="#FFD700" BorderThickness="3">
-				<StackPanel Spacing="20" HorizontalAlignment="Center">
-					<TextBlock Text="¡JUEGO FINALIZADO!" Foreground="#FFD700" FontSize="32" FontWeight="Bold" HorizontalAlignment="Center"/>
-					<TextBlock Text="{Binding GanadorNombre, StringFormat='¡GANADOR: {0}!'}" Foreground="White" FontSize="24" FontWeight="Bold" HorizontalAlignment="Center"/>
-					<TextBlock Text="{Binding GameOverDetails}" Foreground="#CCCCCC" FontSize="18" HorizontalAlignment="Center" TextAlignment="Center"/>
+		<!-- ============================================================= -->
+		<!-- PANTALLA DE VICTORIA                                          -->
+		<!-- ============================================================= -->
+		<Grid IsVisible="{Binding JuegoTerminado}" Background="#B3000000">
+			<Border Classes="panel" BorderBrush="#FFD60A" BorderThickness="2" Padding="40,34" Width="480" HorizontalAlignment="Center" VerticalAlignment="Center">
+				<StackPanel Spacing="16" HorizontalAlignment="Stretch">
+					<Border Width="76" Height="76" CornerRadius="38" Background="#FFD60A" HorizontalAlignment="Center">
+						<Path Data="M12,2 L15.1,8.6 L22,9.3 L16.8,14.1 L18.2,21 L12,17.5 L5.8,21 L7.2,14.1 L2,9.3 L8.9,8.6 Z"
+						      Fill="#14161C" Stretch="Uniform" Width="42" Height="42" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+					</Border>
 
-					<Button Content="Nueva Partida (anfitrión)"
-					        IsVisible="{Binding EsHost}"
-					        Command="{Binding RestartGame}"
-					        Padding="30,12"
-					        FontSize="20"
-					        FontWeight="Bold"
-					        Background="#2ECC71"
-					        Foreground="White"
-					        CornerRadius="10"
-					        HorizontalAlignment="Center"
-					        Cursor="Hand"/>
+					<TextBlock Text="¡GANASTE!" IsVisible="{Binding GanoYo}" Foreground="#FFD60A" FontSize="36" FontWeight="ExtraBold" HorizontalAlignment="Center"/>
+					<TextBlock Text="FIN DE LA PARTIDA" IsVisible="{Binding !GanoYo}" Foreground="#FFD60A" FontSize="30" FontWeight="ExtraBold" HorizontalAlignment="Center"/>
+					<TextBlock Text="{Binding GanadorNombre, StringFormat='Ganador: {0}'}" IsVisible="{Binding !GanoYo}" Foreground="White" FontSize="22" FontWeight="Bold" HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap"/>
 
-					<TextBlock Text="Esperando a que el anfitrión inicie otra partida..."
-					           IsVisible="{Binding !EsHost}"
-					           Foreground="#FFD700" FontSize="16" HorizontalAlignment="Center"/>
+					<Border Background="#0F131B" CornerRadius="14" Padding="18,14" IsVisible="{Binding GameOverDetails, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+						<TextBlock Text="{Binding GameOverDetails}" Foreground="#D5DAE3" FontSize="16" HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap"/>
+					</Border>
 
-					<Button Content="Salir al menú"
-					        Command="{Binding QuitToMainMenu}"
-					        Padding="30,12"
-					        FontSize="18"
-					        FontWeight="Bold"
-					        Background="#7F8C8D"
-					        Foreground="White"
-					        CornerRadius="10"
-					        HorizontalAlignment="Center"
-					        Cursor="Hand"/>
+					<Button Classes="btn ok" Content="Nueva partida" IsVisible="{Binding EsHost}" Command="{Binding RestartGame}" FontSize="18" HorizontalAlignment="Stretch" Margin="0,6,0,0"/>
+
+					<Border Classes="pill" HorizontalAlignment="Center" IsVisible="{Binding !EsHost}">
+						<TextBlock Text="Esperando a que el anfitrión inicie otra partida..." Foreground="#FFD60A" FontSize="14" FontWeight="SemiBold"/>
+					</Border>
+
+					<Button Classes="btn muted" Content="Salir al menú" Command="{Binding QuitToMainMenu}" HorizontalAlignment="Stretch"/>
 				</StackPanel>
 			</Border>
 		</Grid>
 
-		<Grid IsVisible="{Binding MenuPausaVisible}"
-				  Background="#AA000000"
-				  IsHitTestVisible="True"
-				  HorizontalAlignment="Stretch"
-				  VerticalAlignment="Stretch">
+		<!-- ============================================================= -->
+		<!-- MENU DE PAUSA / OPCIONES                                      -->
+		<!-- ============================================================= -->
+		<Grid IsVisible="{Binding MenuPausaVisible}" Background="#B3000000">
+			<Border Classes="panel" Padding="32,28" Width="400" HorizontalAlignment="Center" VerticalAlignment="Center">
+				<StackPanel Spacing="16">
+					<TextBlock Classes="titulo" Text="Opciones" HorizontalAlignment="Center"/>
 
-			<Border Background="#2D2D30"
-                    CornerRadius="16"
-                    Padding="40,30"
-                    HorizontalAlignment="Center"
-                    VerticalAlignment="Center"
-                    BorderBrush="White"
-                    BorderThickness="2">
+					<StackPanel Spacing="8">
+						<TextBlock Classes="etiqueta" Text="TU COLOR EN LA MESA"/>
+						<ItemsControl ItemsSource="{Binding ColoresDisponibles}" ItemTemplate="{StaticResource SwatchTemplate}">
+							<ItemsControl.ItemsPanel>
+								<ItemsPanelTemplate>
+									<WrapPanel/>
+								</ItemsPanelTemplate>
+							</ItemsControl.ItemsPanel>
+						</ItemsControl>
+					</StackPanel>
 
-				<StackPanel Spacing="25" HorizontalAlignment="Center" Width="250">
-					<TextBlock Text="MENÚ DE OPCIONES" Foreground="White" FontSize="22" FontWeight="Bold" HorizontalAlignment="Center"/>
-
-					<Button Content="Reanudar Partida"
-                            Command="{Binding TogglePauseMenu}"
-                            Padding="15"
-                            FontSize="16"
-                            FontWeight="Bold"
-                            Background="#3498DB"
-                            Foreground="White"
-                            CornerRadius="8"
-                            HorizontalAlignment="Stretch"
-                            HorizontalContentAlignment="Center"
-                            Cursor="Hand"/>
-
-					<Button Content="Reiniciar (anfitrión)"
-                            IsVisible="{Binding EsHost}"
-                            Command="{Binding RestartGame}"
-                            Padding="15"
-                            FontSize="16"
-                            FontWeight="Bold"
-                            Background="#E67E22"
-                            Foreground="White"
-                            CornerRadius="8"
-                            HorizontalAlignment="Stretch"
-                            HorizontalContentAlignment="Center"
-                            Cursor="Hand"/>
-
-					<Button Content="Salir"
-                            Command="{Binding QuitToMainMenu}"
-                            Padding="15"
-                            FontSize="16"
-                            FontWeight="Bold"
-                            Background="#E74C3C"
-                            Foreground="White"
-                            CornerRadius="8"
-                            HorizontalAlignment="Stretch"
-                            HorizontalContentAlignment="Center"
-                            Cursor="Hand"/>
+					<Button Classes="btn info" Content="Reanudar partida" Command="{Binding TogglePauseMenu}" HorizontalAlignment="Stretch" Margin="0,6,0,0"/>
+					<Button Classes="btn warn" Content="Reiniciar (anfitrión)" IsVisible="{Binding EsHost}" Command="{Binding RestartGame}" HorizontalAlignment="Stretch"/>
+					<Button Classes="btn muted" Content="Salir de la partida" Command="{Binding QuitToMainMenu}" HorizontalAlignment="Stretch"/>
 				</StackPanel>
 			</Border>
 		</Grid>

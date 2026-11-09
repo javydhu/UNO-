@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
@@ -56,6 +57,15 @@ public class MainViewModel : ViewModelBase
     private string _idPartidaInput = string.Empty;
     private int _mensajeToken = 0; // Ayuda a cancelar mensajes viejos si suceden rapido
 
+    // Solo presentacion (no cambian las reglas)
+    private int _direccion = 1;
+    private bool _ganoYo;
+    private string _partidaIdTexto = string.Empty;
+    private string _contadorSala = string.Empty;
+    private string _colorJugadorHex = PaletaJugador[PaletaJugador.Length - 1].Hex;
+    private Dictionary<int, string> _coloresPorId = new();
+    private EstadoPartidaDto? _ultimoEstado;   // ultima foto aplicada, para repintar si el usuario cambia su color
+
     // Polling 
     private DispatcherTimer? _timer;
     private bool _sincronizando = false;
@@ -73,13 +83,13 @@ public class MainViewModel : ViewModelBase
     public string IDPartidaInput
     {
         get => _idPartidaInput;
-        set => SetProperty(ref _idPartidaInput, value);
+        set { if (SetProperty(ref _idPartidaInput, value)) OnPropertyChanged(nameof(TextoBotonEntrar)); }
     }
 
     public string NombreUsuario
     {
         get => _nombreUsuario;
-        set => SetProperty(ref _nombreUsuario, value);
+        set { if (SetProperty(ref _nombreUsuario, value)) OnPropertyChanged(nameof(InicialUsuario)); }
     }
 
     public string IPServidor
@@ -127,7 +137,7 @@ public class MainViewModel : ViewModelBase
     public bool EsHost
     {
         get => _esHost;
-        set { if (SetProperty(ref _esHost, value)) OnPropertyChanged(nameof(PuedeIniciar)); }
+        set { if (SetProperty(ref _esHost, value)) { OnPropertyChanged(nameof(PuedeIniciar)); OnPropertyChanged(nameof(HostEsperaJugadores)); } }
     }
 
     public bool PuedeIniciar => EsHost && _jugadoresEnSala >= 2;
@@ -183,12 +193,143 @@ public class MainViewModel : ViewModelBase
 
     public string ActiveColorHex => _colorActual switch
     {
-        CardColor.Red => "#E74C3C",
-        CardColor.Yellow => "#F1C40F",
-        CardColor.Blue => "#3498DB",
-        CardColor.Green => "#2ECC71",
+        CardColor.Red => "#ED2939",
+        CardColor.Yellow => "#FFD60A",
+        CardColor.Blue => "#2D7FF9",
+        CardColor.Green => "#1FAA59",
         _ => "#888888"
     };
+
+    // ------------------------------------------------------------------
+    // PRESENTACION: textos y banderas que solo usa la vista
+    // ------------------------------------------------------------------
+    public string ColorActualNombre => _colorActual switch
+    {
+        CardColor.Red => "ROJO",
+        CardColor.Yellow => "AMARILLO",
+        CardColor.Blue => "AZUL",
+        CardColor.Green => "VERDE",
+        _ => "-"
+    };
+
+    public bool HayPendientes => _pendientes > 0;
+    public string PendientesTexto => $"+{_pendientes} ACUMULADO";
+    public int CartasEnMazo => _cartasEnMazo;
+    // Direccion 1 = el turno avanza al asiento de la derecha (abajo -> derecha -> izquierda): antihorario en pantalla
+    public string SentidoTexto => _direccion >= 0 ? "Sentido antihorario" : "Sentido horario";
+
+    public bool GanoYo
+    {
+        get => _ganoYo;
+        set => SetProperty(ref _ganoYo, value);
+    }
+
+    public bool EstaConectando => _isStartingGame;
+    public string TextoBotonEntrar => _isStartingGame
+        ? "CONECTANDO..."
+        : (string.IsNullOrWhiteSpace(IDPartidaInput) ? "CREAR PARTIDA" : "UNIRME A LA PARTIDA");
+
+    // Sala de espera
+    public ObservableCollection<LobbyJugador> JugadoresSala { get; } = new();
+    public string PartidaIdTexto
+    {
+        get => _partidaIdTexto;
+        set => SetProperty(ref _partidaIdTexto, value);
+    }
+    public string ContadorSala
+    {
+        get => _contadorSala;
+        set => SetProperty(ref _contadorSala, value);
+    }
+    public bool HostEsperaJugadores => EsHost && !PuedeIniciar;
+
+    // ------------------------------------------------------------------
+    // COLOR DEL JUGADOR (el usuario elige con que color se ve su nombre)
+    // ------------------------------------------------------------------
+    private static readonly (string Nombre, string Hex)[] PaletaJugador =
+    {
+        ("Dorado",   "#FFD60A"),
+        ("Cian",     "#22D3EE"),
+        ("Rosa",     "#FF6FB5"),
+        ("Lima",     "#A3E635"),
+        ("Naranja",  "#FF9F43"),
+        ("Violeta",  "#A78BFA"),
+        ("Coral",    "#FF6B6B"),
+        ("Azul",     "#60A5FA"),
+    };
+
+    public ObservableCollection<PlayerColorOption> ColoresDisponibles { get; } = new();
+
+    public string ColorJugadorHex
+    {
+        get => _colorJugadorHex;
+        private set => SetProperty(ref _colorJugadorHex, value);
+    }
+
+    public string ColorJugadorNombre
+    {
+        get
+        {
+            foreach (var c in PaletaJugador)
+                if (c.Hex == _colorJugadorHex) return c.Nombre;
+            return string.Empty;
+        }
+    }
+
+    public string InicialUsuario => Player.InicialDe(NombreUsuario);
+
+    private void ElegirColor(PlayerColorOption opcion)
+    {
+        ColorJugadorHex = opcion.Hex;
+        foreach (var c in ColoresDisponibles) c.IsSelected = ReferenceEquals(c, opcion);
+        OnPropertyChanged(nameof(ColorJugadorNombre));
+
+        // Si ya hay sala o partida en pantalla se repinta con el color nuevo (no se manda nada al servidor)
+        if (_ultimoEstado != null && (EnSala || JuegoIniciado))
+            AplicarEstado(_ultimoEstado, forzar: true);
+    }
+
+    // Yo uso el color que elegi; los demas reciben uno de la paleta (siempre distinto al mio y entre si)
+    private void AsignarColores(List<JugadorEstadoDto> jugadores)
+    {
+        var usados = new HashSet<string> { ColorJugadorHex };
+        var dic = new Dictionary<int, string>();
+        foreach (var j in jugadores.OrderBy(x => x.Posicion))
+        {
+            if (j.Id == _miId) { dic[j.Id] = ColorJugadorHex; continue; }
+            int inicio = Math.Abs(j.Id) % PaletaJugador.Length;
+            for (int k = 0; k < PaletaJugador.Length; k++)
+            {
+                string hex = PaletaJugador[(inicio + k) % PaletaJugador.Length].Hex;
+                if (usados.Add(hex)) { dic[j.Id] = hex; break; }
+            }
+        }
+        _coloresPorId = dic;
+    }
+
+    private string ColorDe(int id) => _coloresPorId.TryGetValue(id, out var hex) ? hex : "#FFD60A";
+
+    private void ReconstruirSala(EstadoPartidaDto e)
+    {
+        JugadoresSala.Clear();
+        foreach (var jug in e.Jugadores.OrderBy(x => x.Posicion))
+        {
+            JugadoresSala.Add(new LobbyJugador
+            {
+                Nombre = jug.Nombre,
+                Inicial = Player.InicialDe(jug.Nombre),
+                ColorHex = ColorDe(jug.Id),
+                EsAnfitrion = jug.Id == e.HostId,
+                EsYo = jug.Id == _miId
+            });
+        }
+        for (int i = e.Jugadores.Count; i < MaxJugadores; i++)
+            JugadoresSala.Add(new LobbyJugador { EsVacio = true });
+
+        PartidaIdTexto = e.PartidaId.ToString();
+        ContadorSala = $"{e.Jugadores.Count} de {MaxJugadores} jugadores";
+        OnPropertyChanged(nameof(HostEsperaJugadores));
+    }
 
     // PERSPECTIVA: ahora son fijas por asiento. Abajo SIEMPRE eres tu; a la derecha va el siguiente
     // asiento y a la izquierda el anterior. Se calculan en AplicarEstado().
@@ -198,6 +339,14 @@ public class MainViewModel : ViewModelBase
 
     public MainViewModel()
     {
+        foreach (var c in PaletaJugador)
+        {
+            ColoresDisponibles.Add(new PlayerColorOption(c.Nombre, c.Hex)
+            {
+                SelectAction = ElegirColor,
+                IsSelected = c.Hex == _colorJugadorHex
+            });
+        }
     }
 
     private string NombreDe(int id) => _nombres.TryGetValue(id, out var n) ? n : "?";
@@ -221,6 +370,8 @@ public class MainViewModel : ViewModelBase
     {
         if (_isStartingGame) return;
         _isStartingGame = true;
+        OnPropertyChanged(nameof(EstaConectando));
+        OnPropertyChanged(nameof(TextoBotonEntrar));
 
         try
         {
@@ -298,6 +449,8 @@ public class MainViewModel : ViewModelBase
         finally
         {
             _isStartingGame = false;
+            OnPropertyChanged(nameof(EstaConectando));
+            OnPropertyChanged(nameof(TextoBotonEntrar));
         }
     }
 
@@ -378,8 +531,10 @@ public class MainViewModel : ViewModelBase
         if (!forzar && e.Version < _ultimaVersion) return;
         bool hayCambio = forzar || e.Version != _ultimaVersion;
         _ultimaVersion = e.Version;
+        _ultimoEstado = e;
 
         _nombres = e.Jugadores.ToDictionary(j => j.Id, j => j.Nombre);
+        AsignarColores(e.Jugadores);
         EsHost = e.HostId == _miId;
 
         // Sala de espera: todavia no se reparte
@@ -398,6 +553,7 @@ public class MainViewModel : ViewModelBase
                 sb.AppendLine($"  • {jug.Nombre}{etiqueta}{yo}");
             }
             SalaTexto = sb.ToString();
+            ReconstruirSala(e);
             JuegoIniciado = false;
             JuegoTerminado = false;
             EnSala = true;
@@ -431,9 +587,11 @@ public class MainViewModel : ViewModelBase
         _cartasEnMazo = e.CartasEnMazo;
         _haDichoUno = e.DijoUno;
         _ultimoEvento = e.UltimoEvento;
+        _direccion = e.Direccion;
 
         if (e.Estado == "terminada")
         {
+            GanoYo = e.GanadorId == _miId;
             GanadorNombre = e.GanadorNombre;
             GameOverDetails = e.DetalleFinal;
             ColorElegidoVisible = false;
@@ -464,7 +622,7 @@ public class MainViewModel : ViewModelBase
     // Mi jugador: con todas mis cartas reales y clicables
     private Player CrearJugadorLocal(JugadorEstadoDto info, List<CartaDto> mano)
     {
-        var p = new Player(info.Id, info.Nombre);
+        var p = new Player(info.Id, info.Nombre) { ColorHex = ColorDe(info.Id), EsTurno = info.EsTurno };
         foreach (var dto in mano)
         {
             var carta = CrearCarta(dto);
@@ -478,7 +636,12 @@ public class MainViewModel : ViewModelBase
     // Oponente: solo se conoce CUANTAS cartas tiene; se llenan con cartas de relleno (la vista solo muestra el reverso)
     private Player CrearOponente(JugadorEstadoDto info)
     {
-        var p = new Player(info.Id, info.Nombre);
+        var p = new Player(info.Id, info.Nombre)
+        {
+            ColorHex = ColorDe(info.Id),
+            EsTurno = info.EsTurno,
+            TieneUnaCarta = info.Cartas == 1
+        };
         for (int i = 0; i < info.Cartas; i++)
             p.Mano.Add(new Card(CardColor.Wild, CardValue.Wild));
         return p;
@@ -625,6 +788,7 @@ public class MainViewModel : ViewModelBase
         EnSala = false;
         JuegoTerminado = false;
         _ultimaVersion = 0;
+        _ultimoEstado = null;
         MensajeMenu = string.Empty;
     }
 
@@ -665,6 +829,11 @@ public class MainViewModel : ViewModelBase
         OnPropertyChanged(nameof(HayCartasEnMazo));
         OnPropertyChanged(nameof(BotonPenalizacion));
         OnPropertyChanged(nameof(CanShoutUno));
+        OnPropertyChanged(nameof(HayPendientes));
+        OnPropertyChanged(nameof(PendientesTexto));
+        OnPropertyChanged(nameof(CartasEnMazo));
+        OnPropertyChanged(nameof(ColorActualNombre));
+        OnPropertyChanged(nameof(SentidoTexto));
     }
 
     private void ActualizarEstatus()
