@@ -99,6 +99,39 @@
 				</Border>
 			</Grid>
 		</DataTemplate>
+
+		<!-- Barra de la grafica de estadisticas: victorias arriba, barra del color del jugador y su nombre abajo -->
+		<DataTemplate x:Key="BarraEstadisticaTemplate" DataType="models:EstadisticaJugador">
+			<Grid Width="112" RowDefinitions="152,Auto">
+				<StackPanel Grid.Row="0" VerticalAlignment="Bottom" Spacing="4">
+					<TextBlock Text="{Binding PartidasGanadas}" Foreground="White" FontSize="16" FontWeight="ExtraBold" HorizontalAlignment="Center"/>
+					<Border Width="48" Height="{Binding AlturaBarra}" CornerRadius="8,8,0,0" Background="{Binding ColorHex}" HorizontalAlignment="Center"/>
+				</StackPanel>
+				<Border Grid.Row="0" Height="1" Background="#4DFFFFFF" VerticalAlignment="Bottom"/>
+				<TextBlock Grid.Row="1" Margin="4,8,4,0" Text="{Binding Nombre}" Foreground="{Binding ColorHex}"
+				           FontSize="14" FontWeight="ExtraBold" MaxWidth="104" HorizontalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+			</Grid>
+		</DataTemplate>
+
+		<!-- Fila de la tabla de puntos: ID, jugador y puntos -->
+		<DataTemplate x:Key="FilaPuntosTemplate" DataType="models:EstadisticaJugador">
+			<Border CornerRadius="12" Padding="12,9" Background="#1AFFFFFF" BorderBrush="#26FFFFFF" BorderThickness="1">
+				<Grid ColumnDefinitions="52,*,Auto,64">
+					<TextBlock Grid.Column="0" Text="{Binding Id, StringFormat='#{0}'}" Foreground="#B8C0CC" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center"/>
+					<TextBlock Grid.Column="1" Text="{Binding Nombre}" Foreground="{Binding ColorHex}" FontSize="17" FontWeight="ExtraBold"
+					           TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+					<StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" Margin="8,0,0,0" VerticalAlignment="Center">
+						<Border Background="#FFD60A" CornerRadius="100" Padding="9,3" IsVisible="{Binding EsGanador}">
+							<TextBlock Text="GANADOR" Foreground="#14161C" FontSize="11" FontWeight="ExtraBold"/>
+						</Border>
+						<Border Background="#33FFFFFF" CornerRadius="100" Padding="9,3" IsVisible="{Binding EsYo}">
+							<TextBlock Text="TÚ" Foreground="White" FontSize="11" FontWeight="ExtraBold"/>
+						</Border>
+					</StackPanel>
+					<TextBlock Grid.Column="3" Text="{Binding Puntos}" Foreground="White" FontSize="18" FontWeight="ExtraBold" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+				</Grid>
+			</Border>
+		</DataTemplate>
 	</Window.Resources>
 
 	<Grid>
@@ -464,9 +497,10 @@
 		<!-- PANTALLA DE VICTORIA                                          -->
 		<!-- ============================================================= -->
 		<Grid IsVisible="{Binding JuegoTerminado}" Background="#B3000000">
-			<Border Classes="panel" BorderBrush="#FFD60A" BorderThickness="2" Padding="40,34" Width="480" HorizontalAlignment="Center" VerticalAlignment="Center">
+			<ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+			<Border Classes="panel" BorderBrush="#FFD60A" BorderThickness="2" Padding="40,34" Margin="24" Width="480" HorizontalAlignment="Center" VerticalAlignment="Center">
 				<StackPanel Spacing="16" HorizontalAlignment="Stretch">
-					<Border Width="76" Height="76" CornerRadius="38" Background="#FFD60A" HorizontalAlignment="Center">
+					<Border Width="76" Height="76" CornerRadius="38" Background="#FFD60A" HorizontalAlignment="Center" IsVisible="{Binding !EstadisticasVisibles}">
 						<Path Data="M12,2 L15.1,8.6 L22,9.3 L16.8,14.1 L18.2,21 L12,17.5 L5.8,21 L7.2,14.1 L2,9.3 L8.9,8.6 Z"
 						      Fill="#14161C" Stretch="Uniform" Width="42" Height="42" HorizontalAlignment="Center" VerticalAlignment="Center"/>
 					</Border>
@@ -475,9 +509,58 @@
 					<TextBlock Text="FIN DE LA PARTIDA" IsVisible="{Binding !GanoYo}" Foreground="#FFD60A" FontSize="30" FontWeight="ExtraBold" HorizontalAlignment="Center"/>
 					<TextBlock Text="{Binding GanadorNombre, StringFormat='Ganador: {0}'}" IsVisible="{Binding !GanoYo}" Foreground="White" FontSize="22" FontWeight="Bold" HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap"/>
 
-					<Border Background="#0F131B" CornerRadius="14" Padding="18,14" IsVisible="{Binding GameOverDetails, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-						<TextBlock Text="{Binding GameOverDetails}" Foreground="#D5DAE3" FontSize="16" HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap"/>
-					</Border>
+					<!-- El detalle final se oculta mientras se ven las estadisticas (la tabla ya trae los puntos) -->
+					<StackPanel IsVisible="{Binding !EstadisticasVisibles}">
+						<Border Background="#0F131B" CornerRadius="14" Padding="18,14" IsVisible="{Binding GameOverDetails, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+							<TextBlock Text="{Binding GameOverDetails}" Foreground="#D5DAE3" FontSize="16" HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap"/>
+						</Border>
+					</StackPanel>
+
+					<!-- ESTADISTICAS: aparecen en este mismo cuadro al presionar "Mostrar estadísticas" -->
+					<StackPanel Spacing="16" IsVisible="{Binding EstadisticasVisibles}">
+						<TextBlock Classes="subtitulo" Text="Cargando estadísticas..." HorizontalAlignment="Center" IsVisible="{Binding CargandoEstadisticas}"/>
+
+						<Border Classes="callout" IsVisible="{Binding ErrorEstadisticas, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+							<StackPanel Spacing="10">
+								<TextBlock Classes="error" Text="{Binding ErrorEstadisticas}"/>
+								<Button Classes="btn muted" Content="Reintentar" Command="{Binding CargarEstadisticas}" Padding="16,8" FontSize="14" HorizontalAlignment="Left"/>
+							</StackPanel>
+						</Border>
+
+						<StackPanel Spacing="16" IsVisible="{Binding HayEstadisticas}">
+							<!-- Grafica de barras: una barra por jugador segun sus partidas ganadas -->
+							<StackPanel Spacing="8">
+								<TextBlock Classes="etiqueta" Text="PARTIDAS GANADAS"/>
+								<Border Background="#0F131B" CornerRadius="14" Padding="12,16,12,12">
+									<ItemsControl ItemsSource="{Binding EstadisticasBarras}" ItemTemplate="{StaticResource BarraEstadisticaTemplate}" HorizontalAlignment="Center">
+										<ItemsControl.ItemsPanel>
+											<ItemsPanelTemplate>
+												<StackPanel Orientation="Horizontal"/>
+											</ItemsPanelTemplate>
+										</ItemsControl.ItemsPanel>
+									</ItemsControl>
+								</Border>
+							</StackPanel>
+
+							<!-- Tabla: cada jugador con los puntos que obtuvo -->
+							<StackPanel Spacing="8">
+								<TextBlock Classes="etiqueta" Text="PUNTOS DE ESTA PARTIDA"/>
+								<TextBlock Classes="ayuda" Text="Suma de las cartas que le quedaron a cada jugador en la mano. Menos puntos es mejor."/>
+								<Grid ColumnDefinitions="52,*,Auto,64" Margin="13,4,13,0">
+									<TextBlock Grid.Column="0" Classes="ayuda" Text="ID"/>
+									<TextBlock Grid.Column="1" Classes="ayuda" Text="JUGADOR"/>
+									<TextBlock Grid.Column="3" Classes="ayuda" Text="PUNTOS" HorizontalAlignment="Right"/>
+								</Grid>
+								<ItemsControl ItemsSource="{Binding EstadisticasTabla}" ItemTemplate="{StaticResource FilaPuntosTemplate}">
+									<ItemsControl.ItemsPanel>
+										<ItemsPanelTemplate>
+											<StackPanel Spacing="6"/>
+										</ItemsPanelTemplate>
+									</ItemsControl.ItemsPanel>
+								</ItemsControl>
+							</StackPanel>
+						</StackPanel>
+					</StackPanel>
 
 					<Button Classes="btn ok" Content="Nueva partida" IsVisible="{Binding EsHost}" Command="{Binding RestartGame}" FontSize="18" HorizontalAlignment="Stretch" Margin="0,6,0,0"/>
 
@@ -485,9 +568,12 @@
 						<TextBlock Text="Esperando a que el anfitrión inicie otra partida..." Foreground="#FFD60A" FontSize="14" FontWeight="SemiBold"/>
 					</Border>
 
+					<Button Classes="btn info" Content="{Binding TextoBotonEstadisticas}" Command="{Binding AlternarEstadisticas}" HorizontalAlignment="Stretch"/>
+
 					<Button Classes="btn muted" Content="Salir al menú" Command="{Binding QuitToMainMenu}" HorizontalAlignment="Stretch"/>
 				</StackPanel>
 			</Border>
+			</ScrollViewer>
 		</Grid>
 
 		<!-- ============================================================= -->

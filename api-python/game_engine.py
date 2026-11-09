@@ -115,6 +115,11 @@ class EstadoPartida:
     def _puntos(self, jid):
         return sum(PUNTOS.get(valor, 0) for _, valor in self.manos[jid])
 
+    def puntuaciones(self):
+        """{jugador_id: puntos} con lo que le quedo en la mano a cada jugador (mismo calculo de _puntos).
+        Lo usa la pantalla de estadisticas cuando la partida ya termino."""
+        return {j: self._puntos(j) for j in self.jugadores}
+
     def _terminar(self, ganador_id, detalle):
         self.estado = "terminada"
         self.ganador_id = ganador_id

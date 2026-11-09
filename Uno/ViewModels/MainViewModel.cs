@@ -66,6 +66,12 @@ public class MainViewModel : ViewModelBase
     private Dictionary<int, string> _coloresPorId = new();
     private EstadoPartidaDto? _ultimoEstado;   // ultima foto aplicada, para repintar si el usuario cambia su color
 
+    // Estadisticas de la pantalla de victoria (solo presentacion; los datos los entrega GET /partida/{id}/estadisticas)
+    private const double MaxAlturaBarra = 120;   // alto en pixeles de la barra con mas victorias
+    private bool _estadisticasVisibles = false;
+    private bool _cargandoEstadisticas = false;
+    private string _errorEstadisticas = string.Empty;
+
     // Polling 
     private DispatcherTimer? _timer;
     private bool _sincronizando = false;
@@ -171,6 +177,35 @@ public class MainViewModel : ViewModelBase
         get => _menuPausaVisible;
         set => SetProperty(ref _menuPausaVisible, value);
     }
+
+    // ------------------------------------------------------------------
+    // ESTADISTICAS (se muestran en el mismo cuadro de la pantalla de victoria)
+    // ------------------------------------------------------------------
+    public bool EstadisticasVisibles
+    {
+        get => _estadisticasVisibles;
+        set { if (SetProperty(ref _estadisticasVisibles, value)) OnPropertyChanged(nameof(TextoBotonEstadisticas)); }
+    }
+
+    public string TextoBotonEstadisticas => EstadisticasVisibles ? "Ocultar estadísticas" : "Mostrar estadísticas";
+
+    public bool CargandoEstadisticas
+    {
+        get => _cargandoEstadisticas;
+        private set => SetProperty(ref _cargandoEstadisticas, value);
+    }
+
+    public string ErrorEstadisticas
+    {
+        get => _errorEstadisticas;
+        private set => SetProperty(ref _errorEstadisticas, value);
+    }
+
+    // Grafica de barras: un jugador por barra, de mas a menos partidas ganadas
+    public ObservableCollection<EstadisticaJugador> EstadisticasBarras { get; } = new();
+    // Tabla: un jugador por fila con sus puntos, de menos a mas puntos (igual que decide el motor)
+    public ObservableCollection<EstadisticaJugador> EstadisticasTabla { get; } = new();
+    public bool HayEstadisticas => EstadisticasTabla.Count > 0;
 
     // propiedades calculadas
     public Card? TopCard => _topCard;
@@ -440,6 +475,7 @@ public class MainViewModel : ViewModelBase
             ColorElegidoVisible = false;
             MenuPausaVisible = false;
             JuegoTerminado = false;
+            ReiniciarEstadisticas();
             JuegoIniciado = false;
             EnSala = false;
 
@@ -556,6 +592,7 @@ public class MainViewModel : ViewModelBase
             ReconstruirSala(e);
             JuegoIniciado = false;
             JuegoTerminado = false;
+            ReiniciarEstadisticas();
             EnSala = true;
             OnPropertyChanged(nameof(PuedeIniciar));
             return;
@@ -601,6 +638,7 @@ public class MainViewModel : ViewModelBase
         else
         {
             JuegoTerminado = false;
+            ReiniciarEstadisticas();
             ColorElegidoVisible = _CartaWildPendiente != null && EsMiTurno && ColorElegidoVisible;
             if (!ColorElegidoVisible) _CartaWildPendiente = null;
         }
@@ -778,6 +816,95 @@ public class MainViewModel : ViewModelBase
         MenuPausaVisible = !MenuPausaVisible;
     }
 
+    // Boton "Mostrar estadisticas" / "Ocultar estadisticas" de la pantalla de victoria.
+    // Los datos se piden al servidor cada vez que se muestran, asi las partidas ganadas siempre estan al dia.
+    public async Task AlternarEstadisticas()
+    {
+        if (EstadisticasVisibles)
+        {
+            EstadisticasVisibles = false;
+            return;
+        }
+        EstadisticasVisibles = true;
+        await CargarEstadisticas();
+    }
+
+    public async Task CargarEstadisticas()
+    {
+        if (CargandoEstadisticas) return;
+        CargandoEstadisticas = true;
+        ErrorEstadisticas = string.Empty;
+        EstadisticasBarras.Clear();
+        EstadisticasTabla.Clear();
+        OnPropertyChanged(nameof(HayEstadisticas));
+
+        try
+        {
+            ApiResult r = await _api.GetAsync($"/partida/{partidaID}/estadisticas");
+            if (!JuegoTerminado) return;   // mientras llegaba la respuesta se reinicio la partida o se salio al menu
+            if (!r.Ok)
+            {
+                ErrorEstadisticas = ApiService.ExtraerDetalle(r);
+                return;
+            }
+
+            var dto = JsonSerializer.Deserialize<EstadisticasPartidaDto>(r.Body, _json);
+            if (dto == null)
+            {
+                ErrorEstadisticas = "Respuesta invalida del servidor.";
+                return;
+            }
+            ConstruirEstadisticas(dto);
+        }
+        catch (JsonException e)
+        {
+            Console.WriteLine(e.Message);
+            ErrorEstadisticas = "Respuesta invalida del servidor.";
+        }
+        finally
+        {
+            CargandoEstadisticas = false;
+        }
+    }
+
+    // Convierte la respuesta del servidor en las filas que dibujan la grafica y la tabla
+    private void ConstruirEstadisticas(EstadisticasPartidaDto dto)
+    {
+        int maxVictorias = dto.Jugadores.Count == 0 ? 0 : dto.Jugadores.Max(j => j.PartidasGanadas);
+
+        var filas = dto.Jugadores.OrderBy(j => j.Posicion).Select(j => new EstadisticaJugador
+        {
+            Id = j.Id,
+            Nombre = j.Nombre,
+            ColorHex = ColorDe(j.Id),
+            Puntos = j.Puntos,
+            PartidasGanadas = j.PartidasGanadas,
+            AlturaBarra = (maxVictorias > 0 && j.PartidasGanadas > 0)
+                ? Math.Max(4, MaxAlturaBarra * j.PartidasGanadas / maxVictorias)
+                : 0,
+            EsGanador = j.Id == dto.GanadorId,
+            EsYo = j.Id == _miId
+        }).ToList();
+
+        // OrderBy es estable: en un empate se respeta el orden de asiento
+        foreach (var f in filas.OrderByDescending(x => x.PartidasGanadas)) EstadisticasBarras.Add(f);
+        foreach (var f in filas.OrderBy(x => x.Puntos)) EstadisticasTabla.Add(f);
+        OnPropertyChanged(nameof(HayEstadisticas));
+    }
+
+    // Oculta y vacia las estadisticas (nueva partida, salir al menu...)
+    private void ReiniciarEstadisticas()
+    {
+        EstadisticasVisibles = false;
+        ErrorEstadisticas = string.Empty;
+        if (EstadisticasTabla.Count > 0 || EstadisticasBarras.Count > 0)
+        {
+            EstadisticasBarras.Clear();
+            EstadisticasTabla.Clear();
+            OnPropertyChanged(nameof(HayEstadisticas));
+        }
+    }
+
     // Abandona la partida y vuelve a la pantalla inicial
     public void QuitToMainMenu()
     {
@@ -787,6 +914,7 @@ public class MainViewModel : ViewModelBase
         JuegoIniciado = false;
         EnSala = false;
         JuegoTerminado = false;
+        ReiniciarEstadisticas();
         _ultimaVersion = 0;
         _ultimoEstado = null;
         MensajeMenu = string.Empty;

@@ -221,6 +221,35 @@ def obtener_estado(partida_id: int, jugador_id: int | None = None, desde_version
             return {"sin_cambios": True, "version": estado.version}
         return estado.a_dict(jugador_id)
 
+@app.get("/partida/{partida_id}/estadisticas")
+def obtener_estadisticas(partida_id: int, db: Session = Depends(get_db)):
+    """
+    Por cada jugador de la partida: su ID y nombre (guardados en MySQL), los puntos que le quedaron
+    en la mano (el mismo calculo que usa el motor para decidir el ganador por puntos) y sus partidas
+    ganadas acumuladas en MySQL. Se regresan en orden de asiento; el cliente los ordena para dibujarlos.
+    """
+    with LOCK:
+        estado = _get_estado(partida_id)
+        if estado.estado != "terminada":
+            raise HTTPException(status_code=409, detail="Las estadisticas estan disponibles cuando termina la partida.")
+
+        puntos = estado.puntuaciones()
+        jugadores = []
+        for pos, jid in enumerate(estado.jugadores):
+            jugador = db.get(models.Jugador, jid)
+            jugadores.append({
+                "id": jid,
+                "nombre": jugador.nombre if jugador else estado.nombres[jid],
+                "posicion": pos,
+                "puntos": puntos[jid],
+                "partidas_ganadas": jugador.partidas_ganadas if jugador else 0,
+            })
+        return {
+            "partida_id": estado.partida_id,
+            "ganador_id": estado.ganador_id,
+            "jugadores": jugadores,
+        }
+    
 # Acciones del juego: ahora el SERVIDOR valida y aplica, y regresa el estado nuevo
 @app.post("/partida/jugar-carta")
 def jugar_carta(datos: JugadaRequest, db: Session = Depends(get_db)):
